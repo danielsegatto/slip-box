@@ -93,7 +93,7 @@ const App = () => {
             onClick={() => setSelectedNoteId(null)}
             className="mb-12 text-[10px] uppercase tracking-widest text-gray-400 hover:text-black transition-colors"
           >
-            ← Back to Index
+            ←
           </button>
           
           <article className="max-w-prose">

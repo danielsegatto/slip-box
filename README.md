@@ -11,3 +11,6 @@ Slip-box is a second-generation thinking tool built upon the Atomicity Manifesto
 - The Primacy of Connection: In a Slip-box, an isolated note is a dead note. Value resides in the density and quality of the connections between ideas.
 - Non-Linear Growth, Linear Retrieval: While the "brain" of the app is a chaotic web, the human mind follows threads. Anterior and posterior links allow users to pull a linear string of thought out of a non-linear mess.
 - Minimalism as Mental Space: Every unnecessary UI element is a distraction. The interface is a quiet, empty room where only the current thought exists.
+
+
+[Slip-Box WEB](https://danielsegatto.github.io/slip-box-/)

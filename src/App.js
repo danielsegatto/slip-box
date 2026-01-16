@@ -88,9 +88,6 @@ const App = () => {
             }}
           />
           <div className="flex justify-between items-center mt-4">
-            <span className="text-[10px] uppercase tracking-widest text-gray-300 font-medium">
-              Press CMD+Enter to commit
-            </span>
             <button 
               onClick={addNote}
               disabled={!input.trim()}

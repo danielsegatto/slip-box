@@ -68,6 +68,8 @@ The Experience: This is for macro-thinking and pattern recognition. It allows th
 
 The Digital Mirror: When a user opens the app, they should see their thoughts reflected back at them without the clutter of traditional file systems. No folders, no nested hierarchies.
 
+Structural Invisibility (Text-less UI): The interface intentionally avoids text in its components, utilizing icons and abstract shapes instead. The objective is to ensure that the only readable text in the workspace belongs to the notes and tags. The app is a skeleton for the text, not a competitor to it.
+
 Tactile Thought: Moving from an anterior note to a posterior one should feel like flipping through physical cards in a wooden box.
 
 Binary Organization Rule: Never introduce folders. If the user needs to organize, they must use either a tag (for themes) or a link (for sequence).

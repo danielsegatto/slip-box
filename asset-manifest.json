@@ -1,8 +1,8 @@
 {
   "files": {
-    "main.js": "/your-repo-name/static/js/main.1fdbe4b3.js",
-    "index.html": "/your-repo-name/index.html",
-    "main.1fdbe4b3.js.map": "/your-repo-name/static/js/main.1fdbe4b3.js.map"
+    "main.js": "/slip-box/static/js/main.1fdbe4b3.js",
+    "index.html": "/slip-box/index.html",
+    "main.1fdbe4b3.js.map": "/slip-box/static/js/main.1fdbe4b3.js.map"
   },
   "entrypoints": [
     "static/js/main.1fdbe4b3.js"

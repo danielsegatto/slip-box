@@ -34,7 +34,7 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
         {/* Navigation: Text-less Back Button */}
         <button 
           onClick={onBack}
-          className="fixed top-8 left-6 md:left-auto md:relative md:top-auto md:mb-8 p-2 rounded-full"
+          className="left-auto relative top-auto mb-2 p-2 rounded-full"
         >
           <ArrowLeft size={20} />
         </button>

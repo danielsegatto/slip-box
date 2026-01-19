@@ -16,7 +16,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const svgRef = useRef(null);
-  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [dimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   // Helper: Estimate Note Height
   const getNoteHeight = (text) => {

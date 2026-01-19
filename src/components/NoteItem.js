@@ -19,7 +19,7 @@ const NoteItem = ({ note, deleteNote, onSelect }) => (
           e.stopPropagation(); 
           deleteNote(note.id);
         }}
-        className="opacity-0 p-1 text-red-500 transition-opacity"
+        className="p-1 text-red-500"
       >
         <Trash2 size={14} />
       </button>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
 
-const NODE_WIDTH_BASE = 180;
+// const NODE_WIDTH_BASE = 180;
 const FONT_SIZE = 12;
 
 // --- PHYSICS CONSTANTS ---

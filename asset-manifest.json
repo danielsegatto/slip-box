@@ -1,8 +1,8 @@
 {
   "files": {
-    "main.js": "/slip-box-/static/js/main.a1cc74f3.js",
-    "index.html": "/slip-box-/index.html",
-    "main.a1cc74f3.js.map": "/slip-box-/static/js/main.a1cc74f3.js.map"
+    "main.js": "/slip-box/static/js/main.a1cc74f3.js",
+    "index.html": "/slip-box/index.html",
+    "main.a1cc74f3.js.map": "/slip-box/static/js/main.a1cc74f3.js.map"
   },
   "entrypoints": [
     "static/js/main.a1cc74f3.js"

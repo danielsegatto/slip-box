@@ -1,35 +1,35 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
 
-const NODE_WIDTH = 200;
+const NODE_WIDTH = 240; // Fixed width for the "Index Cards"
 const FONT_SIZE = 12;
-const CHARS_PER_LINE = 25;
+const CHARS_PER_LINE = 28;
 
 const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
-  // State for Physics and View
   const [nodes, setNodes] = useState([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [viewDepth, setViewDepth] = useState(1); // Default to 1st degree connections
+  const [viewDepth, setViewDepth] = useState(1); // 1 = Direct neighbors, 2 = Neighbors of neighbors
   
   // Dragging State
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const svgRef = useRef(null);
-  const [dimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
 
-  // Helper: Estimate Note Height
+  // Helper: Calculate card height based on text content
   const getNoteHeight = (text) => {
+    // Basic estimation: lines + padding + header/footer space
     const lines = Math.ceil(text.length / CHARS_PER_LINE);
-    const padding = 32; 
-    return Math.max(100, (lines * FONT_SIZE * 1.5) + padding); 
+    const padding = 40; 
+    const minHeight = 120;
+    return Math.max(minHeight, (lines * FONT_SIZE * 1.4) + padding); 
   };
 
-  // 1. Graph Calculation (BFS for Depth)
+  // 1. Graph Calculation (Breadth-First Search for Depth)
   useEffect(() => {
     if (!activeNoteId) return;
 
-    // Breadth-First Search to find visible nodes
     const getVisibleGraph = () => {
         const visited = new Set([activeNoteId]);
         let currentLayer = [activeNoteId];
@@ -64,36 +64,27 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     const visibleIds = getVisibleGraph();
 
     setNodes(prevNodes => {
-        // Create a map of existing nodes for position persistence
+        // Persist positions of existing nodes to prevent "jumping"
         const prevNodeMap = new Map(prevNodes.map(n => [n.id, n]));
-        
-        // Filter full notes list by visible IDs
         const visibleNotes = notes.filter(n => visibleIds.has(n.id));
 
         return visibleNotes.map(note => {
-            // If node already exists, keep its physics state
             if (prevNodeMap.has(note.id)) {
                 return prevNodeMap.get(note.id);
             }
 
-            // If it's a NEW node, we need to spawn it intelligently.
-            // Find a neighbor that is already in the graph to spawn near.
-            let spawnX = Math.random() * dimensions.width;
-            let spawnY = Math.random() * dimensions.height;
+            // Smart Spawning: Place new nodes near their "parent"
+            let spawnX = 0;
+            let spawnY = 0;
             
-            // Try to find a parent/neighbor in the previous set
+            // Find a connected node that is already visible
             const neighborId = [...note.links.anterior, ...note.links.posterior]
                 .find(id => prevNodeMap.has(id));
             
             if (neighborId) {
                 const neighbor = prevNodeMap.get(neighborId);
-                // Spawn slightly offset from the neighbor
                 spawnX = neighbor.x + (Math.random() - 0.5) * 100;
                 spawnY = neighbor.y + (Math.random() - 0.5) * 100;
-            } else if (note.id === activeNoteId) {
-                // Center the active note
-                spawnX = 0;
-                spawnY = 0;
             }
 
             return {
@@ -108,9 +99,9 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
         });
     });
 
-  }, [notes, activeNoteId, viewDepth, dimensions]); // Recalculate when depth changes
+  }, [notes, activeNoteId, viewDepth]); // Re-run when depth changes
 
-  // 2. Physics Engine (Identical to previous, but runs on `nodes` state)
+  // 2. Physics Engine (Rectangular Collision)
   useEffect(() => {
     let animationFrameId;
 
@@ -118,7 +109,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
       setNodes(prevNodes => {
         const newNodes = prevNodes.map(n => ({ ...n }));
 
-        // Repulsion (All nodes push apart)
+        // A. Repulsion (Nodes push each other away)
         for (let i = 0; i < newNodes.length; i++) {
           for (let j = i + 1; j < newNodes.length; j++) {
             const nodeA = newNodes[i];
@@ -129,7 +120,8 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
             const distSq = dx * dx + dy * dy || 1;
             const dist = Math.sqrt(distSq);
 
-            const force = 600000 / distSq; 
+            // General gravity repulsion
+            const force = 800000 / distSq; 
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
 
@@ -138,11 +130,13 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
             nodeB.vx += fx;
             nodeB.vy += fy;
 
-            // Box Collision
-            const overlapX = (nodeA.width / 2 + nodeB.width / 2 + 30) - Math.abs(dx);
-            const overlapY = (nodeA.height / 2 + nodeB.height / 2 + 30) - Math.abs(dy);
+            // B. STRICT BOX COLLISION (Prevent Overlap)
+            const padding = 40; // Extra space between cards
+            const overlapX = (nodeA.width / 2 + nodeB.width / 2 + padding) - Math.abs(dx);
+            const overlapY = (nodeA.height / 2 + nodeB.height / 2 + padding) - Math.abs(dy);
 
             if (overlapX > 0 && overlapY > 0) {
+              // Resolve along the shallowest axis
               if (overlapX < overlapY) {
                 const sign = dx > 0 ? -1 : 1;
                 nodeA.vx += sign * overlapX * 0.1; 
@@ -156,9 +150,8 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
           }
         }
 
-        // Attraction (Only for visible links)
+        // C. Link Attraction (Pull connected notes together)
         newNodes.forEach(node => {
-           // We must check if the target exists in the CURRENT visible set
            const neighbors = [...node.links.anterior, ...node.links.posterior];
            neighbors.forEach(targetId => {
                const target = newNodes.find(n => n.id === targetId);
@@ -167,8 +160,8 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                  const dy = target.y - node.y;
                  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
                  
-                 const targetDist = 350; 
-                 const force = (dist - targetDist) * 0.003;
+                 const targetDist = 400; // Optimal link length
+                 const force = (dist - targetDist) * 0.005;
                  
                  const fx = (dx / dist) * force;
                  const fy = (dy / dist) * force;
@@ -179,15 +172,15 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
            });
         });
 
-        // Center Gravity
+        // D. Centering Force
         newNodes.forEach(node => {
           node.vx += (0 - node.x) * 0.0002;
           node.vy += (0 - node.y) * 0.0002;
 
           node.x += node.vx;
           node.y += node.vy;
-          node.vx *= 0.85;
-          node.vy *= 0.85;
+          node.vx *= 0.8; // High friction for stability
+          node.vy *= 0.8;
         });
 
         return newNodes;
@@ -197,7 +190,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
 
     runSimulation();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [dimensions]); // Physics is independent of depth logic, just acts on `nodes`
+  }, []); 
 
   // 3. Canvas Dragging
   const handlePointerDown = (e) => {
@@ -217,29 +210,31 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-[#fafafa]">
-      {/* Controls: Close, Zoom In, Zoom Out */}
-      <div className="absolute top-4 right-4 flex flex-col gap-2 z-50">
-        <button onClick={onClose} className="p-2 bg-white shadow-sm border border-gray-100 rounded-full">
-          <X size={24} className="text-gray-500" />
+      
+      {/* --- Controls UI --- */}
+      <div className="absolute top-4 right-4 flex flex-col gap-3 z-50">
+        <button onClick={onClose} className="p-3 bg-white shadow-sm border border-gray-200 rounded-full text-gray-500">
+          <X size={20} />
         </button>
-        <div className="h-4"></div>
+        <div className="h-4"></div> {/* Spacer */}
         <button 
             onClick={() => setViewDepth(d => d + 1)} 
-            className="p-2 bg-white shadow-sm border border-gray-100 rounded-full"
-            title="Expand Connections"
+            className="p-3 bg-white shadow-sm border border-gray-200 rounded-full text-gray-500"
+            title="Increase Connections Depth"
         >
-          <Plus size={24} className="text-gray-500" />
+          <Plus size={20} />
         </button>
         <button 
             onClick={() => setViewDepth(d => Math.max(1, d - 1))} 
             disabled={viewDepth <= 1}
-            className={`p-2 bg-white shadow-sm border border-gray-100 rounded-full ${viewDepth <= 1 ? 'opacity-50' : ''}`}
-            title="Collapse Connections"
+            className={`p-3 bg-white shadow-sm border border-gray-200 rounded-full text-gray-500 ${viewDepth <= 1 ? 'opacity-50' : ''}`}
+            title="Decrease Connections Depth"
         >
-          <Minus size={24} className="text-gray-500" />
+          <Minus size={20} />
         </button>
       </div>
 
+      {/* --- The Canvas --- */}
       <svg 
         ref={svgRef}
         width="100%" 
@@ -252,11 +247,10 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
       >
         <g transform={`translate(${pan.x + dimensions.width/2}, ${pan.y + dimensions.height/2})`}>
             
-            {/* Draw Connections */}
+            {/* Layer 1: Connections */}
             {nodes.map(node => (
             node.links.anterior.map(targetId => {
                 const target = nodes.find(n => n.id === targetId);
-                // Only draw link if BOTH nodes are visible
                 if (!target) return null;
                 return (
                     <line 
@@ -270,7 +264,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
             })
             ))}
 
-            {/* Draw Nodes */}
+            {/* Layer 2: Cards */}
             {nodes.map(node => {
             const isActive = node.id === activeNoteId;
             return (
@@ -288,24 +282,28 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                             onSelectNote(node.id);
                         }}
                         className={`
-                            h-full w-full p-4 bg-white border cursor-pointer select-none
-                            flex flex-col
-                            ${isActive ? 'border-black shadow-lg z-10' : 'border-gray-200 shadow-sm'}
+                            h-full w-full p-5 bg-white border flex flex-col select-none
+                            ${isActive ? 'border-black shadow-xl z-20' : 'border-gray-200 shadow-sm hover:border-gray-300 z-10'}
                         `}
                     >
+                        {/* Tags */}
                         {node.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
+                            <div className="flex flex-wrap gap-1 mb-3">
                                 {node.tags.map(t => (
-                                    <span key={t} className="text-[10px] text-gray-400">#{t}</span>
+                                    <span key={t} className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">
+                                        #{t}
+                                    </span>
                                 ))}
                             </div>
                         )}
                         
-                        <p className="text-xs text-[#1a1a1a] leading-relaxed whitespace-pre-wrap">
+                        {/* Content */}
+                        <p className="text-xs text-[#1a1a1a] leading-relaxed whitespace-pre-wrap font-mono">
                             {node.content}
                         </p>
 
-                        <div className="mt-auto pt-2 text-[8px] text-gray-300 font-mono">
+                        {/* Footer */}
+                        <div className="mt-auto pt-3 text-[9px] text-gray-300 font-mono text-right">
                             {new Date(node.timestamp).toLocaleDateString()}
                         </div>
                     </div>
@@ -315,10 +313,13 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
         </g>
       </svg>
       
-      <div className="absolute bottom-8 left-0 right-0 text-center pointer-events-none">
-        <p className="text-xs text-gray-300 uppercase tracking-widest bg-white/50 inline-block px-2">
-            Depth: {viewDepth}
-        </p>
+      {/* Status Bar */}
+      <div className="absolute bottom-6 left-0 right-0 flex justify-center pointer-events-none">
+        <div className="bg-white/90 px-4 py-1 rounded-full border border-gray-100 shadow-sm backdrop-blur-sm">
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-medium">
+                Depth: {viewDepth} &bull; Visible: {nodes.length}
+            </p>
+        </div>
       </div>
     </div>
   );

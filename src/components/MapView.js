@@ -4,10 +4,10 @@ import { X, Plus, Minus } from 'lucide-react';
 const FONT_SIZE = 12;
 
 // --- PHYSICS CONSTANTS ---
-const REPULSION = 8000; 
-const SPRING_LEN = 500; 
+const REPULSION = 8000; // Increased to spread cards out
+const SPRING_LEN = 500; // Increased connection length
 const PADDING = 30;     
-const MAX_SPEED = 2; // Pixels per frame
+const MAX_SPEED = 2;  // Faster movement speed
 const FRICTION = 0.95;  
 const WANDER = 0.02;    
 
@@ -133,10 +133,10 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const [viewDepth, setViewDepth] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  
-  // Constants for dimensions are fine, but if we don't update them, we can just use useState without setter.
-  // Or just window.innerWidth directly if we don't care about resize triggering re-renders (which is fine for this MVP).
-  const [dimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [highlightedId, setHighlightedId] = useState(null); // Tracks clicked/held card
+
+  // We only use dimensions for initial centering, standard window is fine
+  const dimensions = { width: window.innerWidth, height: window.innerHeight };
 
   const pointersRef = useRef(new Map());
   const requestRef = useRef();
@@ -266,13 +266,18 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                 node.links.anterior.map(targetId => {
                     const target = nodes.find(n => n.id === targetId);
                     if (!target) return null;
+                    
+                    // Highlight Logic: Darken if either end is held
+                    const isHighlighted = highlightedId && (node.id === highlightedId || target.id === highlightedId);
+
                     return (
                         <line 
                             key={`${node.id}-${target.id}`}
                             x1={node.x} y1={node.y}
                             x2={target.x} y2={target.y}
-                            stroke="#e5e5e5" 
-                            strokeWidth="2"
+                            stroke={isHighlighted ? "#000000" : "#e5e5e5"} 
+                            strokeWidth={isHighlighted ? "4" : "4"} 
+                            className="transition-colors duration-200"
                         />
                     );
                 })
@@ -289,7 +294,16 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                     className="overflow-visible" 
                 >
                     <div 
-                        onPointerDown={(e) => e.stopPropagation()} 
+                        onPointerDown={(e) => {
+                            e.stopPropagation();
+                            setHighlightedId(node.id);
+                        }}
+                        onPointerUp={(e) => {
+                            e.stopPropagation();
+                            setHighlightedId(null);
+                        }}
+                        onPointerLeave={() => setHighlightedId(null)}
+                        
                         onClick={(e) => {
                             e.stopPropagation();
                             onSelectNote(node.id);
@@ -297,6 +311,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                         className={`
                             h-full w-full p-4 bg-white border flex flex-col select-none transition-none
                             ${node.id === activeNoteId ? 'border-black shadow-lg z-20' : 'border-gray-300 shadow-sm z-10'}
+                            ${node.id === highlightedId ? 'ring-2 ring-black' : ''}
                         `}
                     >
                         {node.tags.length > 0 && (

@@ -11,7 +11,7 @@ const NoteList = ({ notes, onDelete, onSelect }) => {
   }
 
   return (
-    <div className="space-y-16">
+    <div className="space-y-4">
       {notes.map((note) => (
         <NoteItem 
           key={note.id} 

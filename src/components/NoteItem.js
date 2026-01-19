@@ -4,7 +4,7 @@ import TagList from './TagList';
 
 const NoteItem = ({ note, deleteNote, onSelect, onTagClick }) => (
   <article 
-    className="relative cursor-pointer bg-white" 
+    className="relative cursor-pointer bg-white p-2" 
     onClick={onSelect}
   >
     <div className="flex justify-between items-start mb-2">

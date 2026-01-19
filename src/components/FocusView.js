@@ -30,16 +30,16 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
         />
       )}
 
-      <main className="max-w-2xl mx-auto px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <main className="max-w-2xl mx-auto px-2 py-6">
         {/* Navigation: Text-less Back Button */}
         <button 
           onClick={onBack}
-          className="fixed top-8 left-6 md:left-auto md:relative md:top-auto md:mb-16 p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-black transition-all"
+          className="fixed top-8 left-6 md:left-auto md:relative md:top-auto md:mb-16 p-2 rounded-full"
         >
           <ArrowLeft size={20} />
         </button>
         
-        <div className="flex flex-col gap-6 relative">
+        <div className="flex flex-col gap-2 relative">
           
           {/* ANTERIOR SECTION (Source) */}
           <div className="flex flex-col">
@@ -51,7 +51,7 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
             {/* Abstract Control: Up Arrow for "Add Source" */}
             <button 
               onClick={() => setLinkingType('anterior')}
-              className="p-2 text-gray-200 hover:text-black hover:bg-gray-50 rounded-full transition-all"
+              className="p-2 text-gray-200"
             >
               <Plus size={24} />
             </button>
@@ -69,7 +69,7 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
              {/* Abstract Control: Down Arrow for "Add Extension" */}
             <button 
               onClick={() => setLinkingType('posterior')}
-              className="p-2 text-gray-200 hover:text-black hover:bg-gray-50 rounded-full transition-all"
+              className="p-2 text-gray-200"
             >
               <Plus size={24} />
             </button>

@@ -4,10 +4,10 @@ import { X, Plus, Minus } from 'lucide-react';
 const FONT_SIZE = 12;
 
 // --- PHYSICS CONSTANTS ---
-const REPULSION = 6000; 
+const REPULSION = 8000; 
 const SPRING_LEN = 500; 
 const PADDING = 30;     
-const MAX_SPEED = 1; // Pixels per frame
+const MAX_SPEED = 2; // Pixels per frame
 const FRICTION = 0.95;  
 const WANDER = 0.02;    
 

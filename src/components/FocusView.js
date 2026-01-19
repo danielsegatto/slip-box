@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ChevronUp, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import ConnectionStack from './ConnectionStack';
 import LinkSelector from './LinkSelector';
 
@@ -42,7 +42,7 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
         <div className="flex flex-col gap-16 relative">
           
           {/* ANTERIOR SECTION (Source) */}
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col">
             <ConnectionStack 
               title="Anterior" 
               linkedNotes={getLinkedNotes('anterior')} 
@@ -53,25 +53,25 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
               onClick={() => setLinkingType('anterior')}
               className="p-2 text-gray-200 hover:text-black hover:bg-gray-50 rounded-full transition-all"
             >
-              <ChevronUp size={24} />
+              <Plus size={24} />
             </button>
           </div>
 
           {/* CURRENT NOTE (The Anchor) */}
           <article className="max-w-prose py-8 border-y border-transparent">
-             <p className="text-2xl md:text-4xl text-center leading-relaxed text-[#1a1a1a] font-light">
+             <p className="text-2xl md:text-4xl leading-relaxed text-[#1a1a1a] font-light">
                {selectedNote.content}
              </p>
           </article>
 
           {/* POSTERIOR SECTION (Extension) */}
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col">
              {/* Abstract Control: Down Arrow for "Add Extension" */}
             <button 
               onClick={() => setLinkingType('posterior')}
               className="p-2 text-gray-200 hover:text-black hover:bg-gray-50 rounded-full transition-all"
             >
-              <ChevronDown size={24} />
+              <Plus size={24} />
             </button>
             <ConnectionStack 
               title="Posterior" 

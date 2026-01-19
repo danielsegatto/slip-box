@@ -1,8 +1,8 @@
 {
-  "name": "slip-box-",
+  "name": "slip-box",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://danielsegatto.github.io/slip-box-",
+  "homepage": "https://danielsegatto.github.io/slip-box",
   "dependencies": {
     "react": "^18.0.0",
     "react-dom": "^18.0.0",

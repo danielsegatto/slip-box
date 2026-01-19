@@ -1,35 +1,131 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
 
-const NODE_WIDTH = 240; // Fixed width for the "Index Cards"
 const FONT_SIZE = 12;
-const CHARS_PER_LINE = 28;
+
+// --- PHYSICS CONSTANTS (Adjusted for "Tighter Packing") ---
+const REPULSION_FORCE = 150000; // Much lower to allow density
+const SPRING_LENGTH = 180;      // Shorter connections
+const FRICTION = 0.6;           // Keeps it stable
+const WARMUP_ITERATIONS = 300;  // Ensure it settles before showing
+const COLLISION_PADDING = 20;   // Minimum gap between cards
 
 const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const [nodes, setNodes] = useState([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [viewDepth, setViewDepth] = useState(1); // 1 = Direct neighbors, 2 = Neighbors of neighbors
+  const [viewDepth, setViewDepth] = useState(1);
   
-  // Dragging State
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const svgRef = useRef(null);
   const [dimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
 
-  // Helper: Calculate card height based on text content
-  const getNoteHeight = (text) => {
-    // Basic estimation: lines + padding + header/footer space
-    const lines = Math.ceil(text.length / CHARS_PER_LINE);
-    const padding = 40; 
-    const minHeight = 120;
-    return Math.max(minHeight, (lines * FONT_SIZE * 1.4) + padding); 
+  // --- DIMENSION LOGIC ---
+  const getNoteDimensions = (text) => {
+    const minWidth = 180;
+    const maxWidth = 340;
+    const charCount = text.length;
+    
+    // Heuristic: Increase width as text gets longer
+    let targetWidth = minWidth;
+    if (charCount > 50) targetWidth = 240;
+    if (charCount > 150) targetWidth = 300;
+    if (charCount > 300) targetWidth = maxWidth;
+
+    // Estimate Height
+    const approxCharWidth = 7; 
+    const charsPerLine = targetWidth / approxCharWidth;
+    const lines = Math.ceil(charCount / charsPerLine);
+    const lineHeight = FONT_SIZE * 1.4;
+    const verticalPadding = 50; 
+    const minHeight = 100;
+    
+    const targetHeight = Math.max(minHeight, (lines * lineHeight) + verticalPadding);
+    
+    return { width: targetWidth, height: targetHeight };
   };
 
-  // 1. Graph Calculation (Breadth-First Search for Depth)
+  // --- THE PHYSICS ENGINE ---
+  const runPhysicsStep = (currentNodes) => {
+    // 1. Repulsion (Nodes push apart)
+    for (let i = 0; i < currentNodes.length; i++) {
+      for (let j = i + 1; j < currentNodes.length; j++) {
+        const nodeA = currentNodes[i];
+        const nodeB = currentNodes[j];
+        
+        const dx = nodeB.x - nodeA.x;
+        const dy = nodeB.y - nodeA.y;
+        const distSq = dx * dx + dy * dy || 1;
+        const dist = Math.sqrt(distSq);
+
+        // Repulsion is weaker now, allowing them to get closer
+        const force = REPULSION_FORCE / distSq; 
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+
+        nodeA.vx -= fx;
+        nodeA.vy -= fy;
+        nodeB.vx += fx;
+        nodeB.vy += fy;
+
+        // 2. Strict Box Collision (Anti-Overlap)
+        const overlapX = (nodeA.width / 2 + nodeB.width / 2 + COLLISION_PADDING) - Math.abs(dx);
+        const overlapY = (nodeA.height / 2 + nodeB.height / 2 + COLLISION_PADDING) - Math.abs(dy);
+
+        if (overlapX > 0 && overlapY > 0) {
+          if (overlapX < overlapY) {
+            const sign = dx > 0 ? -1 : 1;
+            nodeA.vx += sign * overlapX * 0.2; 
+            nodeB.vx -= sign * overlapX * 0.2; 
+          } else {
+            const sign = dy > 0 ? -1 : 1;
+            nodeA.vx += sign * overlapY * 0.2;
+            nodeB.vx -= sign * overlapY * 0.2;
+          }
+        }
+      }
+    }
+
+    // 3. Attraction (Links pull together)
+    currentNodes.forEach(node => {
+        const neighbors = [...node.links.anterior, ...node.links.posterior];
+        neighbors.forEach(targetId => {
+            const target = currentNodes.find(n => n.id === targetId);
+            if (target) {
+              const dx = target.x - node.x;
+              const dy = target.y - node.y;
+              const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+              
+              // Pulls them to the tighter SPRING_LENGTH
+              const force = (dist - SPRING_LENGTH) * 0.005;
+              const fx = (dx / dist) * force;
+              const fy = (dy / dist) * force;
+
+              node.vx += fx;
+              node.vy += fy;
+            }
+        });
+
+        // 4. Centering
+        node.vx += (0 - node.x) * 0.0002;
+        node.vy += (0 - node.y) * 0.0002;
+
+        // 5. Apply Velocity & Friction
+        node.x += node.vx;
+        node.y += node.vy;
+        node.vx *= FRICTION; 
+        node.vy *= FRICTION;
+    });
+
+    return currentNodes;
+  };
+
+  // --- 1. Graph Calculation & WARM START ---
   useEffect(() => {
     if (!activeNoteId) return;
 
+    // A. BFS to find visible nodes
     const getVisibleGraph = () => {
         const visited = new Set([activeNoteId]);
         let currentLayer = [activeNoteId];
@@ -39,17 +135,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
             currentLayer.forEach(id => {
                 const note = notes.find(n => n.id === id);
                 if (!note) return;
-
-                // Check Anterior
-                note.links.anterior.forEach(linkId => {
-                    if (!visited.has(linkId)) {
-                        visited.add(linkId);
-                        nextLayer.push(linkId);
-                    }
-                });
-
-                // Check Posterior
-                note.links.posterior.forEach(linkId => {
+                [...note.links.anterior, ...note.links.posterior].forEach(linkId => {
                     if (!visited.has(linkId)) {
                         visited.add(linkId);
                         nextLayer.push(linkId);
@@ -62,29 +148,34 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     };
 
     const visibleIds = getVisibleGraph();
-
+    
+    // B. Construct Nodes State
     setNodes(prevNodes => {
-        // Persist positions of existing nodes to prevent "jumping"
         const prevNodeMap = new Map(prevNodes.map(n => [n.id, n]));
         const visibleNotes = notes.filter(n => visibleIds.has(n.id));
+        
+        let newNodesList = visibleNotes.map(note => {
+            // Recalculate dimensions in case content changed
+            const dims = getNoteDimensions(note.content);
 
-        return visibleNotes.map(note => {
             if (prevNodeMap.has(note.id)) {
-                return prevNodeMap.get(note.id);
+                const prev = prevNodeMap.get(note.id);
+                return { ...prev, ...dims };
             }
 
-            // Smart Spawning: Place new nodes near their "parent"
+            // Smart Spawn: Start closer (150px) to minimize travel time
             let spawnX = 0;
             let spawnY = 0;
             
-            // Find a connected node that is already visible
             const neighborId = [...note.links.anterior, ...note.links.posterior]
                 .find(id => prevNodeMap.has(id));
             
             if (neighborId) {
                 const neighbor = prevNodeMap.get(neighborId);
-                spawnX = neighbor.x + (Math.random() - 0.5) * 100;
-                spawnY = neighbor.y + (Math.random() - 0.5) * 100;
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 150; // Closer spawn
+                spawnX = neighbor.x + Math.cos(angle) * radius;
+                spawnY = neighbor.y + Math.sin(angle) * radius;
             }
 
             return {
@@ -93,106 +184,35 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                 y: spawnY,
                 vx: 0,
                 vy: 0,
-                width: NODE_WIDTH,
-                height: getNoteHeight(note.content)
+                ...dims
             };
         });
-    });
 
-  }, [notes, activeNoteId, viewDepth]); // Re-run when depth changes
-
-  // 2. Physics Engine (Rectangular Collision)
-  useEffect(() => {
-    let animationFrameId;
-
-    const runSimulation = () => {
-      setNodes(prevNodes => {
-        const newNodes = prevNodes.map(n => ({ ...n }));
-
-        // A. Repulsion (Nodes push each other away)
-        for (let i = 0; i < newNodes.length; i++) {
-          for (let j = i + 1; j < newNodes.length; j++) {
-            const nodeA = newNodes[i];
-            const nodeB = newNodes[j];
-            
-            const dx = nodeB.x - nodeA.x;
-            const dy = nodeB.y - nodeA.y;
-            const distSq = dx * dx + dy * dy || 1;
-            const dist = Math.sqrt(distSq);
-
-            // General gravity repulsion
-            const force = 800000 / distSq; 
-            const fx = (dx / dist) * force;
-            const fy = (dy / dist) * force;
-
-            nodeA.vx -= fx;
-            nodeA.vy -= fy;
-            nodeB.vx += fx;
-            nodeB.vy += fy;
-
-            // B. STRICT BOX COLLISION (Prevent Overlap)
-            const padding = 40; // Extra space between cards
-            const overlapX = (nodeA.width / 2 + nodeB.width / 2 + padding) - Math.abs(dx);
-            const overlapY = (nodeA.height / 2 + nodeB.height / 2 + padding) - Math.abs(dy);
-
-            if (overlapX > 0 && overlapY > 0) {
-              // Resolve along the shallowest axis
-              if (overlapX < overlapY) {
-                const sign = dx > 0 ? -1 : 1;
-                nodeA.vx += sign * overlapX * 0.1; 
-                nodeB.vx -= sign * overlapX * 0.1; 
-              } else {
-                const sign = dy > 0 ? -1 : 1;
-                nodeA.vx += sign * overlapY * 0.1;
-                nodeB.vx -= sign * overlapY * 0.1;
-              }
-            }
-          }
+        // C. WARM-UP (Silent Simulation)
+        for (let k = 0; k < WARMUP_ITERATIONS; k++) {
+            runPhysicsStep(newNodesList);
         }
 
-        // C. Link Attraction (Pull connected notes together)
-        newNodes.forEach(node => {
-           const neighbors = [...node.links.anterior, ...node.links.posterior];
-           neighbors.forEach(targetId => {
-               const target = newNodes.find(n => n.id === targetId);
-               if (target) {
-                 const dx = target.x - node.x;
-                 const dy = target.y - node.y;
-                 const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                 
-                 const targetDist = 400; // Optimal link length
-                 const force = (dist - targetDist) * 0.005;
-                 
-                 const fx = (dx / dist) * force;
-                 const fy = (dy / dist) * force;
+        return newNodesList;
+    });
 
-                 node.vx += fx;
-                 node.vy += fy;
-               }
-           });
-        });
+  }, [notes, activeNoteId, viewDepth]); 
 
-        // D. Centering Force
-        newNodes.forEach(node => {
-          node.vx += (0 - node.x) * 0.0002;
-          node.vy += (0 - node.y) * 0.0002;
-
-          node.x += node.vx;
-          node.y += node.vy;
-          node.vx *= 0.8; // High friction for stability
-          node.vy *= 0.8;
-        });
-
-        return newNodes;
+  // --- 2. Live Physics Loop ---
+  useEffect(() => {
+    let animationFrameId;
+    const tick = () => {
+      setNodes(prev => {
+        const next = prev.map(n => ({ ...n })); 
+        return runPhysicsStep(next);
       });
-      animationFrameId = requestAnimationFrame(runSimulation);
+      animationFrameId = requestAnimationFrame(tick);
     };
-
-    runSimulation();
+    tick();
     return () => cancelAnimationFrame(animationFrameId);
-  }, []); 
+  }, []);
 
-  // 3. Canvas Dragging
+  // --- 3. Interaction Logic ---
   const handlePointerDown = (e) => {
     if (e.target.tagName === 'svg') {
         setIsDraggingCanvas(true);
@@ -211,16 +231,15 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   return (
     <div className="fixed inset-0 z-50 bg-[#fafafa]">
       
-      {/* --- Controls UI --- */}
+      {/* Controls */}
       <div className="absolute top-4 right-4 flex flex-col gap-3 z-50">
         <button onClick={onClose} className="p-3 bg-white shadow-sm border border-gray-200 rounded-full text-gray-500">
           <X size={20} />
         </button>
-        <div className="h-4"></div> {/* Spacer */}
+        <div className="h-4"></div>
         <button 
             onClick={() => setViewDepth(d => d + 1)} 
             className="p-3 bg-white shadow-sm border border-gray-200 rounded-full text-gray-500"
-            title="Increase Connections Depth"
         >
           <Plus size={20} />
         </button>
@@ -228,13 +247,12 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
             onClick={() => setViewDepth(d => Math.max(1, d - 1))} 
             disabled={viewDepth <= 1}
             className={`p-3 bg-white shadow-sm border border-gray-200 rounded-full text-gray-500 ${viewDepth <= 1 ? 'opacity-50' : ''}`}
-            title="Decrease Connections Depth"
         >
           <Minus size={20} />
         </button>
       </div>
 
-      {/* --- The Canvas --- */}
+      {/* Canvas */}
       <svg 
         ref={svgRef}
         width="100%" 
@@ -264,7 +282,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
             })
             ))}
 
-            {/* Layer 2: Cards */}
+            {/* Layer 2: Cards (Index Cards) */}
             {nodes.map(node => {
             const isActive = node.id === activeNoteId;
             return (
@@ -283,10 +301,9 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                         }}
                         className={`
                             h-full w-full p-5 bg-white border flex flex-col select-none
-                            ${isActive ? 'border-black shadow-xl z-20' : 'border-gray-200 shadow-sm hover:border-gray-300 z-10'}
+                            ${isActive ? 'border-black shadow-xl z-20' : 'border-gray-200 shadow-sm z-10'}
                         `}
                     >
-                        {/* Tags */}
                         {node.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-3">
                                 {node.tags.map(t => (
@@ -297,12 +314,10 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                             </div>
                         )}
                         
-                        {/* Content */}
                         <p className="text-xs text-[#1a1a1a] leading-relaxed whitespace-pre-wrap font-mono">
                             {node.content}
                         </p>
 
-                        {/* Footer */}
                         <div className="mt-auto pt-3 text-[9px] text-gray-300 font-mono text-right">
                             {new Date(node.timestamp).toLocaleDateString()}
                         </div>
@@ -313,7 +328,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
         </g>
       </svg>
       
-      {/* Status Bar */}
+      {/* Legend */}
       <div className="absolute bottom-6 left-0 right-0 flex justify-center pointer-events-none">
         <div className="bg-white/90 px-4 py-1 rounded-full border border-gray-100 shadow-sm backdrop-blur-sm">
             <p className="text-[10px] text-gray-400 uppercase tracking-widest font-medium">

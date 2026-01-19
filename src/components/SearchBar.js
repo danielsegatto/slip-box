@@ -8,7 +8,7 @@ const SearchBar = ({ searchQuery, setSearchQuery }) => (
       <input 
         type="text"
         placeholder="..."
-        className="w-full bg-transparent p-2 border-gray-200 text-sm placeholder:text-gray-300"
+        className="w-full p-2 border-gray-200 text-sm placeholder:text-gray-300"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />

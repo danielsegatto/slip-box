@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Minimize2 } from 'lucide-react';
+import { X } from 'lucide-react';
 
 const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const [nodes, setNodes] = useState([]);

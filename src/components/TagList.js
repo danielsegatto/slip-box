@@ -1,19 +1,27 @@
 import React from 'react';
 
-const TagList = ({ tags, variant = 'default' }) => {
+const TagList = ({ tags, onTagClick, variant = 'default' }) => {
   if (!tags || tags.length === 0) return null;
 
+  const baseStyles = "cursor-pointer transition-colors duration-200";
   const styles = {
-    default: "text-[10px] font-medium px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full",
-    minimal: "text-[10px] text-gray-200 group-hover:text-gray-400"
+    default: `${baseStyles} text-[10px] font-medium px-2 py-0.5 bg-gray-100 text-gray-500 hover:bg-black hover:text-white rounded-full`,
+    minimal: `${baseStyles} text-[10px] text-gray-200 hover:text-black`
   };
 
   return (
-    <div className="flex gap-2 mt-2">
+    <div className="flex flex-wrap gap-2 mt-2">
       {tags.map(tag => (
-        <span key={tag} className={styles[variant]}>
+        <button 
+          key={tag} 
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent opening the note
+            onTagClick && onTagClick(tag);
+          }}
+          className={styles[variant]}
+        >
           #{tag}
-        </span>
+        </button>
       ))}
     </div>
   );

@@ -30,7 +30,7 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
         />
       )}
 
-      <main className="max-w-2xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <main className="max-w-2xl mx-auto px-6 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Navigation: Text-less Back Button */}
         <button 
           onClick={onBack}
@@ -39,7 +39,7 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
           <ArrowLeft size={20} />
         </button>
         
-        <div className="flex flex-col gap-16 relative">
+        <div className="flex flex-col gap-6 relative">
           
           {/* ANTERIOR SECTION (Source) */}
           <div className="flex flex-col">
@@ -58,7 +58,7 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
           </div>
 
           {/* CURRENT NOTE (The Anchor) */}
-          <article className="max-w-prose py-8 border-y border-transparent">
+          <article className="max-w-prose py-4 border-y border-transparent">
              <p className="text-2xl md:text-4xl leading-relaxed text-[#1a1a1a] font-light">
                {selectedNote.content}
              </p>

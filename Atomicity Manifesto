@@ -72,6 +72,8 @@ Structural Invisibility (Text-less UI): The interface intentionally avoids text 
 
 Tactile Thought: Moving from an anterior note to a posterior one should feel like flipping through physical cards in a wooden box.
 
+The Honesty of Touch (Mobile-First Reality) Hover states are a desktop illusion; they do not exist in the hand. Visual transitions (fades, slides, glides) are cosmetic delays that mask the raw function of the tool. In a mobile-first context, interaction is binary: you touch, it acts. The interface must be immediate and solid. It should snap, not drift. The app rejects the "smoothness" of modern web design in favor of the instant responsiveness of a physical tool.
+
 Binary Organization Rule: Never introduce folders. If the user needs to organize, they must use either a tag (for themes) or a link (for sequence).
 
 ## VIRTUAL BEHAVIORAL GUIDELINES

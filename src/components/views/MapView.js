@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
-import { runPhysicsTick, getDimensions } from '../../utils/physicsEngine'; // New Import
+import { runPhysicsTick, getDimensions } from '../../utils/physicsEngine';
 
 const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const [nodes, setNodes] = useState([]);
@@ -10,18 +10,20 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const [highlightedId, setHighlightedId] = useState(null);
 
   const dimensions = { width: window.innerWidth, height: window.innerHeight };
-
   const pointersRef = useRef(new Map());
   const requestRef = useRef();
   const clickStartRef = useRef(0);
 
   // --- 1. INITIALIZATION & DATA SYNC ---
   useEffect(() => {
-    if (!activeNoteId) return;
+    // If no active note, show everything (or a default set)
+    // For now, we require an activeNoteId to "anchor" the map view
+    const anchorId = activeNoteId || notes[0]?.id;
+    if (!anchorId) return;
 
     // A. BFS for visibility (Which nodes should be on the map?)
-    const visited = new Set([activeNoteId]);
-    let currentLayer = [activeNoteId];
+    const visited = new Set([anchorId]);
+    let currentLayer = [anchorId];
     for (let d = 0; d < viewDepth; d++) {
         const nextLayer = [];
         currentLayer.forEach(id => {
@@ -34,7 +36,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
         currentLayer = nextLayer;
     }
 
-    // B. Build Node Objects
+    // B. Build/Update Node Objects (Preserve positions of existing nodes)
     setNodes(prevNodes => {
         const prevMap = new Map(prevNodes.map(n => [n.id, n]));
         
@@ -42,7 +44,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
             .filter(n => visited.has(n.id))
             .map(n => {
                 const existing = prevMap.get(n.id);
-                const dims = getDimensions(n.content); // Use Helper
+                const dims = getDimensions(n.content);
                 if (existing) return { ...existing, ...dims };
                 
                 return {
@@ -55,24 +57,24 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                 };
             });
 
-        // C. Pre-solve Layout (Run physics fast for initial placement)
-        for (let i = 0; i < 200; i++) {
-            newNodes = runPhysicsTick(newNodes, true); // Use Helper
+        // C. Pre-solve Layout if it's a fresh load (low node count)
+        if (prevNodes.length === 0) {
+            for (let i = 0; i < 200; i++) {
+                newNodes = runPhysicsTick(newNodes, true);
+            }
         }
         
         return newNodes;
     });
 
-  }, [notes, activeNoteId, viewDepth]);
-
+  }, [notes, activeNoteId, viewDepth]); // Re-runs when activeNoteId changes to re-center graph
 
   // --- 2. ANIMATION LOOP ---
   useEffect(() => {
     const animate = () => {
-        setNodes(prev => runPhysicsTick(prev, false)); // Use Helper
+        setNodes(prev => runPhysicsTick(prev, false));
         requestRef.current = requestAnimationFrame(animate);
     };
-    
     requestRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(requestRef.current);
   }, []); 
@@ -104,21 +106,20 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const handlePointerUp = (e) => {
     pointersRef.current.delete(e.pointerId);
   };
-
   // --- 4. RENDER ---
   return (
     <div className="fixed inset-0 z-50 bg-[#fafafa]">
       
       {/* Controls */}
       <div className="absolute top-4 right-4 flex flex-col gap-2 z-50">
-        <button onClick={onClose} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 hover:text-black">
+        <button onClick={onClose} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 hover:text-black transition-colors">
           <X size={20} />
         </button>
         <div className="h-4"></div>
-        <button onClick={() => setViewDepth(d => d + 1)} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500">
+        <button onClick={() => setViewDepth(d => d + 1)} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 hover:text-black transition-colors">
           <Plus size={20} />
         </button>
-        <button onClick={() => setViewDepth(d => Math.max(1, d - 1))} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500">
+        <button onClick={() => setViewDepth(d => Math.max(1, d - 1))} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 hover:text-black transition-colors">
           <Minus size={20} />
         </button>
       </div>
@@ -141,16 +142,14 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                 node.links.anterior.map(targetId => {
                     const target = nodes.find(n => n.id === targetId);
                     if (!target) return null;
-                    
                     const isHighlighted = highlightedId && (node.id === highlightedId || target.id === highlightedId);
-
                     return (
                         <line 
                             key={`${node.id}-${target.id}`}
                             x1={node.x} y1={node.y}
                             x2={target.x} y2={target.y}
                             stroke={isHighlighted ? "#000000" : "#e5e5e5"} 
-                            strokeWidth={isHighlighted ? "4" : "4"} 
+                            strokeWidth={isHighlighted ? "3" : "2"} 
                             className="transition-colors duration-200"
                         />
                     );
@@ -181,15 +180,15 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                         
                         onClick={(e) => {
                             e.stopPropagation();
-                            // Tactile Logic: Only navigate if the hold was shorter than 200ms
+                                                        // Tactile Logic: Only navigate if the hold was shorter than 200ms
                             const pressDuration = Date.now() - clickStartRef.current;
                             if (pressDuration < 200) {
-                                onSelectNote(node.id);
+                                onSelectNote(node.id); // Triggers update in App.js but stays in MapView
                             }
                         }}
                         className={`
-                            h-full w-full p-4 bg-white border flex flex-col select-none transition-none
-                            ${node.id === activeNoteId ? 'border-black shadow-lg z-20' : 'border-gray-300 shadow-sm z-10'}
+                            h-full w-full p-4 bg-white border flex flex-col select-none transition-all duration-300
+                            ${node.id === activeNoteId ? 'border-black shadow-lg z-20 scale-105' : 'border-gray-300 shadow-sm z-10 opacity-90'}
                             ${node.id === highlightedId ? 'ring-2 ring-black' : ''}
                         `}
                     >

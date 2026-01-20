@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSlipBox } from './hooks/useSlipBox';
 
 // Views
-import GlobalIndexView from './components/views/GlobalIndexView'; // The new component
-import FocusView from './components/views/FocusView'; // Assumes you moved this
-import MapView from './components/views/MapView';     // Assumes you moved this
+import GlobalIndexView from './components/views/GlobalIndexView';
+import FocusView from './components/views/FocusView';
+import MapView from './components/views/MapView';
 
 const App = () => {
   // --- 1. THE NERVOUS SYSTEM (Logic Hook) ---
@@ -18,16 +18,11 @@ const App = () => {
   
   const textareaRef = useRef(null);
 
-  // --- 3. VIEW ROUTING LOGIC ---
-  useEffect(() => {
-    if (selectedNoteId) {
-        setViewMode('focus');
-    } else {
-        setViewMode('list');
-    }
-  }, [selectedNoteId]);
+  // --- 3. EXPLICIT ROUTING ---
+  // Note: We REMOVED the useEffect that watched selectedNoteId.
+  // View switching is now handled explicitly by the interaction source.
 
-  // Derived State (The Filter)
+  // Derived State
   const filteredNotes = notes.filter(n => 
     n.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
     n.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -35,7 +30,6 @@ const App = () => {
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
-  // Helper: Get Linked Notes for Focus View
   const getLinkedNotes = (type) => {
     if (!selectedNote) return [];
     return selectedNote.links[type]
@@ -43,7 +37,23 @@ const App = () => {
       .filter(Boolean);
   };
 
-  // Handlers
+  // --- HANDLERS ---
+
+  const handleGlobalSelect = (id) => {
+      setSelectedNoteId(id);
+      setViewMode('focus'); // Explicitly enter focus mode from list
+  };
+
+  const handleMapSelect = (id) => {
+      setSelectedNoteId(id);
+      // DO NOT change viewMode. Stay in map.
+  };
+
+  const handleMapClose = () => {
+      // If we have a selection, go to Focus. If not, go to List.
+      setViewMode(selectedNoteId ? 'focus' : 'list');
+  };
+
   const handleAddNote = () => {
       addNote(input);
       setInput('');
@@ -63,8 +73,8 @@ const App = () => {
           <MapView 
             notes={notes} 
             activeNoteId={selectedNoteId}
-            onSelectNote={(id) => setSelectedNoteId(id)}
-            onClose={() => setViewMode(selectedNoteId ? 'focus' : 'list')}
+            onSelectNote={handleMapSelect} // Uses specific handler
+            onClose={handleMapClose}       // Uses specific handler
           />
       )}
 
@@ -79,7 +89,7 @@ const App = () => {
             textareaRef={textareaRef}
             filteredNotes={filteredNotes}
             onDeleteNote={deleteNote}
-            onSelectNote={setSelectedNoteId}
+            onSelectNote={handleGlobalSelect} // Uses specific handler
             onTagClick={handleTagClick}
           />
       )}
@@ -90,8 +100,11 @@ const App = () => {
               selectedNote={selectedNote}
               allNotes={notes}
               getLinkedNotes={getLinkedNotes}
-              onBack={() => setSelectedNoteId(null)}
-              onSelectNote={(id) => setSelectedNoteId(id)}
+              onBack={() => {
+                  setSelectedNoteId(null);
+                  setViewMode('list');
+              }}
+              onSelectNote={(id) => setSelectedNoteId(id)} // Stay in Focus View
               onAddLink={addLink}
               onOpenMap={() => setViewMode('map')}
             />

@@ -96,43 +96,29 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   };
 
   const handlePointerDown = (e) => {
-    if (e.target.tagName === 'svg' || e.target.tagName === 'g') {
-      e.target.setPointerCapture(e.pointerId);
-      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }
+    // Check if we are clicking the background (not a node-card)
+    // In this new structure, nodes block events, so this generally only fires on background
+    e.target.setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
   };
 
   const handlePointerMove = (e) => {
-    // 1. Update the current pointer's position
     if (!pointersRef.current.has(e.pointerId)) return;
     const prev = pointersRef.current.get(e.pointerId);
-    
-    // Update the record for this pointer
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    // 2. CHECK FOR PINCH (2 fingers)
     if (pointersRef.current.size === 2) {
+        // PINCH ZOOM
         const points = [...pointersRef.current.values()];
-        const p1 = points[0];
-        const p2 = points[1];
-        
-        // Calculate distance between fingers
-        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-
+        const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
         if (prevPinchDistRef.current) {
-            // Compare current distance to previous frame's distance
             const scale = dist / prevPinchDistRef.current;
             setZoom(z => Math.min(Math.max(0.2, z * scale), 4));
         }
-        
-        // Store for next frame
         prevPinchDistRef.current = dist;
-    } 
-    // 3. CHECK FOR PAN (1 finger)
-    else if (pointersRef.current.size === 1) {
-        // Only pan if we aren't pinching (clears jitter)
+    } else if (pointersRef.current.size === 1) {
+        // PAN
         prevPinchDistRef.current = null; 
-        
         setPan(p => ({
             x: p.x + (e.clientX - prev.x),
             y: p.y + (e.clientY - prev.y)
@@ -142,126 +128,124 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
 
   const handlePointerUp = (e) => {
     pointersRef.current.delete(e.pointerId);
-    // Reset pinch tracking when fingers lift
-    if (pointersRef.current.size < 2) {
-        prevPinchDistRef.current = null;
-    }
+    if (pointersRef.current.size < 2) prevPinchDistRef.current = null;
   };
-  // --- 4. RENDER ---
+
   return (
-    <div className="fixed inset-0 z-50 bg-[#fafafa]">
+    <div 
+      className="fixed inset-0 z-50 bg-[#fafafa] touch-none select-none overflow-hidden"
+      onWheel={handleWheel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
       
-      {/* Controls */}
-      <div className="absolute top-4 right-4 flex flex-col gap-2 z-50">
-        <button onClick={onClose} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 hover:text-black transition-colors">
+      {/* UI CONTROLS */}
+      <div className="absolute top-4 right-4 flex flex-col gap-2 z-50 pointer-events-auto">
+        <button onClick={onClose} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 hover:text-black">
           <X size={20} />
         </button>
         <div className="h-4"></div>
-        <button onClick={() => setViewDepth(d => d + 1)} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 hover:text-black transition-colors">
+        <button onClick={() => setViewDepth(d => d + 1)} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500">
           <Plus size={20} />
         </button>
-        <button onClick={() => setViewDepth(d => Math.max(1, d - 1))} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 hover:text-black transition-colors">
+        <button onClick={() => setViewDepth(d => Math.max(1, d - 1))} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500">
           <Minus size={20} />
         </button>
       </div>
-      {/* Map Canvas */}
-      <svg 
-        width="100%" 
-        height="100%" 
-        className="cursor-move touch-none bg-[#fafafa]"
-        onWheel={handleWheel}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+
+      {/* TRANSFORM CONTAINER (MOVES EVERYTHING) */}
+      <div 
+        className="absolute top-0 left-0 w-full h-full origin-top-left will-change-transform"
+        style={{ 
+          transform: `translate(${pan.x + dimensions.width/2}px, ${pan.y + dimensions.height/2}px) scale(${zoom})` 
+        }}
       >
-        {/* DEFINITIONS FOR ARROWS */}
-        <defs>
-          <marker id="arrow-default" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L0,6 L9,3 z" fill="#e5e5e5" />
-          </marker>
-          <marker id="arrow-active" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L0,6 L9,3 z" fill="#000000" />
-          </marker>
-        </defs>
+        
+        {/* LAYER 1: SVG LINES (Background) */}
+        <svg className="absolute inset-0 overflow-visible pointer-events-none">
+          <defs>
+            <marker id="arrow-default" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#e5e5e5" />
+            </marker>
+            <marker id="arrow-active" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#000000" />
+            </marker>
+          </defs>
+          
+          {nodes.map(node => (
+            node.links.anterior.map(sourceId => {
+              const source = nodes.find(n => n.id === sourceId);
+              if (!source) return null;
+              const isHighlighted = highlightedId && (node.id === highlightedId || source.id === highlightedId);
+              const end = calculateIntersection(source, node);
 
-        <g transform={`translate(${pan.x + dimensions.width/2}, ${pan.y + dimensions.height/2}) scale(${zoom})`}>
-            
-            {/* LINKS (Anterior -> Node) */}
-            {nodes.map(node => (
-                node.links.anterior.map(sourceId => {
-                    const source = nodes.find(n => n.id === sourceId);
-                    if (!source) return null;
-                    
-                    const isHighlighted = highlightedId && (node.id === highlightedId || source.id === highlightedId);
-                    // Logic: Line goes FROM Source TO Current Node.
-                    // We clip the endpoint so the arrow sits on the box edge.
-                    const end = calculateIntersection(source, node);
+              return (
+                <line 
+                  key={`${source.id}-${node.id}`}
+                  x1={source.x} y1={source.y}
+                  x2={end.x} y2={end.y}
+                  stroke={isHighlighted ? "#000000" : "#e5e5e5"} 
+                  strokeWidth={isHighlighted ? "2" : "2"} 
+                  className="transition-colors duration-200"
+                  markerEnd={isHighlighted ? "url(#arrow-active)" : "url(#arrow-default)"}
+                />
+              );
+            })
+          ))}
+        </svg>
 
-                    return (
-                        <line 
-                            key={`${source.id}-${node.id}`}
-                            x1={source.x} y1={source.y}
-                            x2={end.x} y2={end.y}
-                            stroke={isHighlighted ? "#000000" : "#e5e5e5"} 
-                            strokeWidth={isHighlighted ? "2" : "2"} 
-                            className="transition-colors duration-200"
-                            markerEnd={isHighlighted ? "url(#arrow-active)" : "url(#arrow-default)"}
-                        />
-                    );
-                })
-            ))}
-
-            {/* NODES */}
-            {nodes.map(node => (
-                <foreignObject
-                    key={node.id}
-                    x={node.x - node.width / 2}
-                    y={node.y - node.height / 2}
-                    width={node.width}
-                    height={node.height}
-                    className="overflow-visible" 
-                >
-                    <div 
-                        onPointerDown={(e) => {
-                            e.stopPropagation();
-                            setHighlightedId(node.id);
-                            clickStartRef.current = Date.now();
-                        }}
-                        onPointerUp={(e) => {
-                            e.stopPropagation();
-                            setHighlightedId(null);
-                        }}
-                        onPointerLeave={() => setHighlightedId(null)}
-                        
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            const pressDuration = Date.now() - clickStartRef.current;
-                            if (pressDuration < 200) {
-                                onSelectNote(node.id);
-                            }
-                        }}
-                        className={`
-                            h-full w-full p-4 bg-white border flex flex-col select-none transition-all duration-300
-                            ${node.id === activeNoteId ? 'border-black shadow-lg z-20 scale-105' : 'border-gray-300 shadow-sm z-10 opacity-90'}
-                            ${node.id === highlightedId ? 'ring-2 ring-black' : ''}
-                        `}
-                    >
-                        {node.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
-                                {node.tags.map(t => (
-                                    <span key={t} className="text-[10px] uppercase text-gray-400 font-medium">#{t}</span>
-                                ))}
-                            </div>
-                        )}
-                        <p className="text-xs text-[#1a1a1a] whitespace-pre-wrap font-mono leading-relaxed">
-                            {node.content}
-                        </p>
+        {/* LAYER 2: HTML NODES (Foreground) */}
+        <div className="absolute inset-0 pointer-events-none">
+          {nodes.map(node => (
+             <div 
+               key={node.id}
+               className={`
+                 absolute pointer-events-auto flex flex-col p-4 bg-white border transition-shadow duration-300
+                 ${node.id === activeNoteId ? 'border-black shadow-lg z-20' : 'border-gray-300 shadow-sm z-10'}
+                 ${node.id === highlightedId ? 'ring-2 ring-black' : ''}
+               `}
+               style={{
+                 left: node.x,
+                 top: node.y,
+                 width: node.width,
+                 height: node.height,
+                 transform: 'translate(-50%, -50%)' // Center div on coordinate
+               }}
+               onPointerDown={(e) => {
+                   e.stopPropagation();
+                   setHighlightedId(node.id);
+                   clickStartRef.current = Date.now();
+               }}
+               onPointerUp={(e) => {
+                   e.stopPropagation();
+                   setHighlightedId(null);
+               }}
+               onClick={(e) => {
+                   e.stopPropagation();
+                   const pressDuration = Date.now() - clickStartRef.current;
+                   if (pressDuration < 200) {
+                       onSelectNote(node.id);
+                   }
+               }}
+             >
+                {/* Note Content */}
+                {node.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                        {node.tags.map(t => (
+                            <span key={t} className="text-[10px] uppercase text-gray-400 font-medium">#{t}</span>
+                        ))}
                     </div>
-                </foreignObject>
-            ))}
-        </g>
-      </svg>
+                )}
+                <p className="text-xs text-[#1a1a1a] whitespace-pre-wrap font-mono leading-relaxed pointer-events-none">
+                    {node.content}
+                </p>
+             </div>
+          ))}
+        </div>
+
+      </div>
     </div>
   );
 };

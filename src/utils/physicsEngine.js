@@ -1,11 +1,11 @@
 // --- CONSTANTS ---
-const FONT_SIZE = 12;
+const FONT_SIZE = 18;
 const REPULSION = 8000; 
-const SPRING_LEN = 500; 
-const PADDING = 30;     
+const SPRING_LEN = 300; 
+const PADDING = 50;     
 const MAX_SPEED = 3;  
 const FRICTION = 0.95;  
-const WANDER = 0.02;    
+const WANDER = 0.1;    
 
 // --- HELPER: Calculate Node Size based on Text ---
 export const getDimensions = (text) => {

@@ -4,14 +4,14 @@ import { X, Plus, Minus } from 'lucide-react';
 const FONT_SIZE = 12;
 
 // --- PHYSICS CONSTANTS ---
-const REPULSION = 8000; // Increased to spread cards out
-const SPRING_LEN = 500; // Increased connection length
+const REPULSION = 8000; 
+const SPRING_LEN = 500; 
 const PADDING = 30;     
-const MAX_SPEED = 2;  // Faster movement speed
+const MAX_SPEED = 3;  
 const FRICTION = 0.95;  
 const WANDER = 0.02;    
 
-// --- HELPER FUNCTIONS (Stable, Pure) ---
+// --- HELPER FUNCTIONS ---
 
 const getDimensions = (text) => {
   let w = 200;
@@ -25,9 +25,7 @@ const getDimensions = (text) => {
 };
 
 const runPhysicsTick = (currentNodes, isSetup = false) => {
-  // Clone to avoid mutation
   const nextNodes = currentNodes.map(n => ({ ...n }));
-  
   const currentMaxSpeed = isSetup ? 20 : MAX_SPEED;
   
   // 1. Apply Forces
@@ -62,7 +60,7 @@ const runPhysicsTick = (currentNodes, isSetup = false) => {
           nodeA.vy += (dy / dist) * force;
       });
 
-      // C. Ambient Wander (Only during live phase)
+      // C. Ambient Wander
       if (!isSetup) {
           nodeA.vx += (Math.random() - 0.5) * WANDER;
           nodeA.vy += (Math.random() - 0.5) * WANDER;
@@ -133,14 +131,16 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const [viewDepth, setViewDepth] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [highlightedId, setHighlightedId] = useState(null); // Tracks clicked/held card
+  const [highlightedId, setHighlightedId] = useState(null);
 
-  // We only use dimensions for initial centering, standard window is fine
   const dimensions = { width: window.innerWidth, height: window.innerHeight };
 
   const pointersRef = useRef(new Map());
   const requestRef = useRef();
   
+  // Ref to track when a click started
+  const clickStartRef = useRef(0);
+
   // --- 1. INITIALIZATION ---
   useEffect(() => {
     if (!activeNoteId) return;
@@ -267,7 +267,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                     const target = nodes.find(n => n.id === targetId);
                     if (!target) return null;
                     
-                    // Highlight Logic: Darken if either end is held
                     const isHighlighted = highlightedId && (node.id === highlightedId || target.id === highlightedId);
 
                     return (
@@ -297,6 +296,8 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                         onPointerDown={(e) => {
                             e.stopPropagation();
                             setHighlightedId(node.id);
+                            // Record exact start time
+                            clickStartRef.current = Date.now();
                         }}
                         onPointerUp={(e) => {
                             e.stopPropagation();
@@ -306,7 +307,11 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                         
                         onClick={(e) => {
                             e.stopPropagation();
-                            onSelectNote(node.id);
+                            // Only navigate if the hold was shorter than 200ms
+                            const pressDuration = Date.now() - clickStartRef.current;
+                            if (pressDuration < 200) {
+                                onSelectNote(node.id);
+                            }
                         }}
                         className={`
                             h-full w-full p-4 bg-white border flex flex-col select-none transition-none

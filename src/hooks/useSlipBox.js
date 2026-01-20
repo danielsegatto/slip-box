@@ -1,31 +1,26 @@
 import { useState, useEffect } from 'react';
+import { extractTags } from '../utils/textProcessor';
 
 const STORAGE_KEY = 'slip-box-atoms';
 
 export const useSlipBox = () => {
   const [notes, setNotes] = useState([]);
 
-  // 1. Sync with LocalStorage (Load)
+  // 1. Load from Memory (Mount)
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) setNotes(JSON.parse(saved));
   }, []);
 
-  // 2. Sync with LocalStorage (Save)
+  // 2. Save to Memory (Update)
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
   }, [notes]);
 
-  // 3. Logic: Extract Tags
-  const extractTags = (text) => {
-    const regex = /#(\w+)/g;
-    const matches = text.match(regex);
-    return matches ? matches.map(m => m.slice(1)) : [];
-  };
-
-  // 4. Action: Add Note
+  // 3. Action: Create Atom
   const addNote = (content) => {
     if (!content.trim()) return;
+    
     const newNote = {
       id: Date.now().toString(),
       content: content.trim(),
@@ -33,18 +28,19 @@ export const useSlipBox = () => {
       tags: extractTags(content),
       links: { anterior: [], posterior: [] }
     };
+    
     setNotes(prev => [newNote, ...prev]);
   };
 
-  // 5. Action: Delete Note
+  // 4. Action: Delete Atom
   const deleteNote = (id) => {
     setNotes(prev => prev.filter(n => n.id !== id));
   };
 
-  // 6. Action: The Synapse (Link Notes)
+  // 5. Action: The Synapse (Bidirectional Linking)
   const addLink = (sourceId, targetId, type) => {
     setNotes(prevNotes => prevNotes.map(note => {
-      // Update the Source Note
+      // A. Update Source
       if (note.id === sourceId) {
         return { 
           ...note, 
@@ -54,7 +50,7 @@ export const useSlipBox = () => {
           } 
         };
       }
-      // Update the Target Note (Inverse Link)
+      // B. Update Target (Inverse Link)
       if (note.id === targetId) {
         const inverseType = type === 'anterior' ? 'posterior' : 'anterior';
         return { 

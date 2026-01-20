@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'; // Removed useEffect
+import React, { useState, useRef } from 'react';
 import { useSlipBox } from './hooks/useSlipBox';
 
 // Views
@@ -14,17 +14,23 @@ const App = () => {
   const [input, setInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState(null); 
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'focus' | 'map'
+  const [viewMode, setViewMode] = useState('list'); 
   
   const textareaRef = useRef(null);
 
   // --- 3. EXPLICIT ROUTING ---
   
-  // Derived State
-  const filteredNotes = notes.filter(n => 
-    n.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    n.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Derived State 
+  const filteredNotes = notes.filter(n => {
+    const query = searchQuery.toLowerCase();
+    // If the query is a tag search (starts with #), strip it for the tag comparison
+    const cleanQuery = query.startsWith('#') ? query.slice(1) : query;
+
+    return (
+      n.content.toLowerCase().includes(query) ||
+      n.tags.some(t => t.toLowerCase().includes(cleanQuery))
+    );
+  });
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
@@ -59,14 +65,15 @@ const App = () => {
   };
 
   const handleTagClick = (tag) => {
-    setSearchQuery(tag); 
+    // Prepend the '#' for visual feedback
+    setSearchQuery(`#${tag}`); 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-[#1a1a1a] font-sans selection:bg-black selection:text-white relative">
       
-      {/* VIEW: MAP (The Topography) */}
+      {/* VIEW: MAP */}
       {viewMode === 'map' && (
           <MapView 
             notes={notes} 
@@ -76,7 +83,7 @@ const App = () => {
           />
       )}
 
-      {/* VIEW: GLOBAL INDEX (The Lobby) */}
+      {/* VIEW: GLOBAL INDEX */}
       {viewMode === 'list' && !selectedNoteId && (
           <GlobalIndexView 
             searchQuery={searchQuery}
@@ -92,7 +99,7 @@ const App = () => {
           />
       )}
 
-      {/* VIEW: FOCUS (The Thread) */}
+      {/* VIEW: FOCUS */}
       {viewMode === 'focus' && selectedNoteId && selectedNote && (
             <FocusView 
               selectedNote={selectedNote}

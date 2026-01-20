@@ -113,7 +113,7 @@ const STYLES = {
   connectionGroup: "flex flex-col gap-2",
   addButton: "p-2 text-gray-300 hover:text-black self-start transition-colors",
   activeNoteContainer: "py-6 border-y border-gray-100",
-  textarea: "w-full text-2xl leading-relaxed text-[#1a1a1a] font-light resize-none bg-transparent outline-none overflow-hidden"
+  textarea: "w-full text-2xl leading-relaxed text-[#1a1a1a] font-light resize-none bg-white outline-none overflow-hidden"
 };
 
 export default FocusView;

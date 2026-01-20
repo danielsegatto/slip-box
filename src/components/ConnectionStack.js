@@ -11,7 +11,7 @@ const ConnectionStack = ({ title, linkedNotes, onSelectNote, onRemove }) => {
         {linkedNotes.map(note => (
           <div 
             key={note.id} 
-            className="group relative flex items-start gap-2"
+            className="group relative flex items-start gap-2 bg-white"
           >
             {/* The Note Link */}
             <div 

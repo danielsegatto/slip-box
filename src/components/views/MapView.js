@@ -2,6 +2,30 @@ import React, { useEffect, useState, useRef } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
 import { runPhysicsTick, getDimensions } from '../../utils/physicsEngine';
 
+// --- GEOMETRY HELPER: CLIP LINE TO RECTANGLE ---
+// Calculates where the line from 'source' should stop to touch 'target's border
+const calculateIntersection = (source, target) => {
+    // Target dimensions (half-width/height) plus a small buffer for the arrow tip
+    const w = (target.width / 2) + 5; 
+    const h = (target.height / 2) + 5;
+
+    const dx = source.x - target.x;
+    const dy = source.y - target.y;
+
+    if (dx === 0 && dy === 0) return { x: target.x, y: target.y };
+
+    // Calculate scale factor to project vector onto the box boundary
+    // We are looking for the point on the target box that faces the source.
+    const scaleX = w / Math.abs(dx);
+    const scaleY = h / Math.abs(dy);
+    const scale = Math.min(scaleX, scaleY);
+
+    return {
+        x: target.x + (dx * scale),
+        y: target.y + (dy * scale)
+    };
+};
+
 const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const [nodes, setNodes] = useState([]);
   const [viewDepth, setViewDepth] = useState(1);
@@ -20,7 +44,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     // For now, we require an activeNoteId to "anchor" the map view
     const anchorId = activeNoteId || notes[0]?.id;
     if (!anchorId) return;
-
     // A. BFS for visibility (Which nodes should be on the map?)
     const visited = new Set([anchorId]);
     let currentLayer = [anchorId];
@@ -35,7 +58,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
         });
         currentLayer = nextLayer;
     }
-
     // B. Build/Update Node Objects (Preserve positions of existing nodes)
     setNodes(prevNodes => {
         const prevMap = new Map(prevNodes.map(n => [n.id, n]));
@@ -56,14 +78,12 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                     vy: 0
                 };
             });
-
         // C. Pre-solve Layout if it's a fresh load (low node count)
         if (prevNodes.length === 0) {
             for (let i = 0; i < 200; i++) {
                 newNodes = runPhysicsTick(newNodes, true);
             }
         }
-        
         return newNodes;
     });
 
@@ -106,6 +126,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const handlePointerUp = (e) => {
     pointersRef.current.delete(e.pointerId);
   };
+
   // --- 4. RENDER ---
   return (
     <div className="fixed inset-0 z-50 bg-[#fafafa]">
@@ -123,7 +144,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
           <Minus size={20} />
         </button>
       </div>
-
       {/* Map Canvas */}
       <svg 
         width="100%" 
@@ -135,28 +155,45 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
+        {/* DEFINITIONS FOR ARROWS */}
+        <defs>
+          <marker id="arrow-default" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#e5e5e5" />
+          </marker>
+          <marker id="arrow-active" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#000000" />
+          </marker>
+        </defs>
+
         <g transform={`translate(${pan.x + dimensions.width/2}, ${pan.y + dimensions.height/2}) scale(${zoom})`}>
             
-            {/* Layer 1: Links */}
+            {/* LINKS (Anterior -> Node) */}
             {nodes.map(node => (
-                node.links.anterior.map(targetId => {
-                    const target = nodes.find(n => n.id === targetId);
-                    if (!target) return null;
-                    const isHighlighted = highlightedId && (node.id === highlightedId || target.id === highlightedId);
+                node.links.anterior.map(sourceId => {
+                    const source = nodes.find(n => n.id === sourceId);
+                    if (!source) return null;
+                    
+                    const isHighlighted = highlightedId && (node.id === highlightedId || source.id === highlightedId);
+                    
+                    // Logic: Line goes FROM Source TO Current Node.
+                    // We clip the endpoint so the arrow sits on the box edge.
+                    const end = calculateIntersection(source, node);
+
                     return (
                         <line 
-                            key={`${node.id}-${target.id}`}
-                            x1={node.x} y1={node.y}
-                            x2={target.x} y2={target.y}
+                            key={`${source.id}-${node.id}`}
+                            x1={source.x} y1={source.y}
+                            x2={end.x} y2={end.y}
                             stroke={isHighlighted ? "#000000" : "#e5e5e5"} 
-                            strokeWidth={isHighlighted ? "3" : "2"} 
+                            strokeWidth={isHighlighted ? "2" : "2"} 
                             className="transition-colors duration-200"
+                            markerEnd={isHighlighted ? "url(#arrow-active)" : "url(#arrow-default)"}
                         />
                     );
                 })
             ))}
 
-            {/* Layer 2: Thought Cards */}
+            {/* NODES */}
             {nodes.map(node => (
                 <foreignObject
                     key={node.id}
@@ -179,8 +216,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                         onPointerLeave={() => setHighlightedId(null)}
                         
                         onClick={(e) => {
-                            e.stopPropagation();
-                                                        // Tactile Logic: Only navigate if the hold was shorter than 200ms
+                            e.stopPropagation(); // Tactile Logic: Only navigate if the hold was shorter than 200ms
                             const pressDuration = Date.now() - clickStartRef.current;
                             if (pressDuration < 200) {
                                 onSelectNote(node.id); // Triggers update in App.js but stays in MapView

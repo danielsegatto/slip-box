@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react'; // Removed useEffect
 import { useSlipBox } from './hooks/useSlipBox';
 
 // Views
@@ -10,7 +10,7 @@ const App = () => {
   // --- 1. THE NERVOUS SYSTEM (Logic Hook) ---
   const { notes, addNote, deleteNote, addLink } = useSlipBox();
 
-  // --- 2. UI STATE (The "Router") ---
+  // --- 2. UI STATE ---
   const [input, setInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState(null); 
@@ -19,9 +19,7 @@ const App = () => {
   const textareaRef = useRef(null);
 
   // --- 3. EXPLICIT ROUTING ---
-  // Note: We REMOVED the useEffect that watched selectedNoteId.
-  // View switching is now handled explicitly by the interaction source.
-
+  
   // Derived State
   const filteredNotes = notes.filter(n => 
     n.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -73,8 +71,8 @@ const App = () => {
           <MapView 
             notes={notes} 
             activeNoteId={selectedNoteId}
-            onSelectNote={handleMapSelect} // Uses specific handler
-            onClose={handleMapClose}       // Uses specific handler
+            onSelectNote={handleMapSelect} 
+            onClose={handleMapClose}       
           />
       )}
 
@@ -89,7 +87,7 @@ const App = () => {
             textareaRef={textareaRef}
             filteredNotes={filteredNotes}
             onDeleteNote={deleteNote}
-            onSelectNote={handleGlobalSelect} // Uses specific handler
+            onSelectNote={handleGlobalSelect} 
             onTagClick={handleTagClick}
           />
       )}
@@ -104,7 +102,7 @@ const App = () => {
                   setSelectedNoteId(null);
                   setViewMode('list');
               }}
-              onSelectNote={(id) => setSelectedNoteId(id)} // Stay in Focus View
+              onSelectNote={(id) => setSelectedNoteId(id)} 
               onAddLink={addLink}
               onOpenMap={() => setViewMode('map')}
             />

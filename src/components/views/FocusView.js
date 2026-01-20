@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Plus, Map } from 'lucide-react'; 
-import ConnectionStack from '../ConnectionStack';
-import LinkSelector from '../LinkSelector';
+import ConnectionStack from '../ConnectionStack'; 
+import LinkSelector from '../LinkSelector';      
 
 const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNote, onAddLink, onOpenMap }) => {
   const [linkingType, setLinkingType] = useState(null); // 'anterior' | 'posterior' | null
@@ -10,15 +10,21 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
   // 1. Remove the note itself.
   // 2. Remove notes that are ALREADY connected in the current direction.
   const linkableNotes = allNotes.filter(n => {
+    if (!selectedNote) return false;
     const isSelf = n.id === selectedNote.id;
-    const isAlreadyConnected = linkingType && selectedNote.links[linkingType].includes(n.id);
+    // Check if links exist before accessing them to prevent crashes on new notes
+    const currentLinks = selectedNote.links?.[linkingType] || []; 
+    const isAlreadyConnected = linkingType && currentLinks.includes(n.id);
     return !isSelf && !isAlreadyConnected;
   });
 
   const handleLinkSelection = (targetId) => {
-    onAddLink(targetId, linkingType);
+    // Pass selectedNote.id as the SOURCE argument
+    onAddLink(selectedNote.id, targetId, linkingType); 
     setLinkingType(null);
   };
+
+  if (!selectedNote) return null;
 
   return (
     <>
@@ -49,7 +55,8 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
         </div>
         
         <div className="flex flex-col gap-2 relative">
-                    {/* ANTERIOR SECTION (Source) */}
+          
+          {/* ANTERIOR SECTION (Source) */}
           <div className="flex flex-col">
             <ConnectionStack 
               title="Anterior" 
@@ -63,12 +70,14 @@ const FocusView = ({ selectedNote, allNotes, getLinkedNotes, onBack, onSelectNot
               <Plus size={24} />
             </button>
           </div>
+
           {/* CURRENT NOTE (The Anchor) */}
           <article className="max-w-prose py-4 border-y border-transparent">
              <p className="text-xl md:text-2xl leading-relaxed text-[#1a1a1a] font-light">
                {selectedNote.content}
              </p>
           </article>
+
           {/* POSTERIOR SECTION (Extension) */}
           <div className="flex flex-col">
             <button 

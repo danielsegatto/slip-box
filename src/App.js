@@ -1,24 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth'; // NEW
+import { auth } from './utils/firebase'; // NEW
 import useSlipBox from './hooks/useSlipBox';
-import GlobalIndexView from './components/views/GlobalIndexView'; // Updated View usage
+import GlobalIndexView from './components/views/GlobalIndexView';
 import FocusView from './components/views/FocusView';
 import MapView from './components/views/MapView';
+import LoginView from './components/views/LoginView'; // NEW
 
 const App = () => {
-  const { notes, addNote, updateNote, deleteNote, addLink, removeLink } = useSlipBox();
+  // --- AUTH STATE ---
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // This listener automatically handles session persistence
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // --- DATA HOOK (Passes the UID) ---
+  const { notes, addNote, updateNote, deleteNote, addLink, removeLink } = useSlipBox(user?.uid);
+  
   const [view, setView] = useState('index'); 
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [impulse, setImpulse] = useState('');
 
-  // --- IMPULSE HANDLER ---
   const handleImpulseAdd = () => {
      if (!impulse.trim()) return;
      addNote(impulse);
      setImpulse('');
   };
 
-  // --- LINK HELPER ---
   const getLinkedNotes = (type) => {
     const activeNote = notes.find(n => n.id === activeNoteId);
     if (!activeNote || !activeNote.links[type]) return [];
@@ -27,10 +43,13 @@ const App = () => {
 
   const activeNote = notes.find(n => n.id === activeNoteId);
 
+  // --- RENDER GATES ---
+  if (loading) return <div className="min-h-screen bg-[#fafafa]" />; // Or a spinner
+  if (!user) return <LoginView />;
+
   return (
     <div className="min-h-screen bg-[#fafafa] font-sans text-[#1a1a1a]">
       
-      {/* MAP VIEW OVERLAY */}
       {view === 'map' && (
         <MapView 
             notes={notes} 
@@ -40,7 +59,6 @@ const App = () => {
         />
       )}
 
-      {/* INDEX VIEW (Refactored to use GlobalIndexView) */}
       {view === 'index' && (
         <GlobalIndexView 
             notes={notes}
@@ -54,7 +72,6 @@ const App = () => {
         />
       )}
 
-      {/* FOCUS VIEW */}
       {view === 'focus' && activeNote && (
         <FocusView 
           selectedNote={activeNote}

@@ -15,32 +15,40 @@ import {
 import { db } from '../utils/firebase';
 import { extractTags } from '../utils/textProcessor';
 
-const useSlipBox = () => {
+// NEW: Accept 'uid' to scope data to the user
+const useSlipBox = (uid) => {
   const [notes, setNotes] = useState([]);
 
-  // 1. SYNC: Real-time listener for notes
+  // 1. SYNC: Real-time listener (User Scoped)
   useEffect(() => {
-    // Listen to the "notes" collection
-    const q = query(collection(db, "notes"));
+    if (!uid) {
+      setNotes([]); // Clear notes if no user
+      return;
+    }
+
+    // CHANGED: Added 'where("uid", "==", uid)' clause
+    const q = query(collection(db, "notes"), where("uid", "==", uid));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notesData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      // Sort client-side by timestamp descending (newest first)
       setNotes(notesData.sort((a, b) => b.timestamp - a.timestamp));
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [uid]); // Re-run if user changes
 
-  // 2. CREATE: Generate ID locally -> Save to FireStore
+  // 2. CREATE: Add 'uid' field to new notes
   const addNote = (content = '') => {
+    if (!uid) return; // Guard clause
+
     const newNoteRef = doc(collection(db, "notes"));
     
     const newNote = {
       id: newNoteRef.id,
+      uid: uid, // NEW: Ownership field
       content: content,
       timestamp: Date.now(),
       tags: extractTags(content),
@@ -51,7 +59,6 @@ const useSlipBox = () => {
     return newNote; 
   };
 
-  // 3. UPDATE: Update content and regenerate tags
   const updateNote = async (id, newContent) => {
     const noteRef = doc(db, "notes", id);
     await updateDoc(noteRef, {
@@ -60,23 +67,20 @@ const useSlipBox = () => {
     });
   };
 
-  // 4. DELETE: Atomic cleanup (Remove note + Remove links to it)
   const deleteNote = async (id) => {
     const batch = writeBatch(db);
     const noteRef = doc(db, "notes", id);
 
-    // A. Delete the note itself
     batch.delete(noteRef);
 
-    // B. Remove this ID from any "anterior" lists
-    const antQuery = query(collection(db, "notes"), where("links.anterior", "array-contains", id));
+    // Ensure we only clean up links in OUR notes (though IDs are unique anyway)
+    const antQuery = query(collection(db, "notes"), where("uid", "==", uid), where("links.anterior", "array-contains", id));
     const antSnap = await getDocs(antQuery);
     antSnap.forEach(doc => {
       batch.update(doc.ref, { "links.anterior": arrayRemove(id) });
     });
 
-    // C. Remove this ID from any "posterior" lists
-    const postQuery = query(collection(db, "notes"), where("links.posterior", "array-contains", id));
+    const postQuery = query(collection(db, "notes"), where("uid", "==", uid), where("links.posterior", "array-contains", id));
     const postSnap = await getDocs(postQuery);
     postSnap.forEach(doc => {
       batch.update(doc.ref, { "links.posterior": arrayRemove(id) });
@@ -85,10 +89,8 @@ const useSlipBox = () => {
     await batch.commit();
   };
 
-  // 5. LINK: Connect two notes
   const addLink = async (sourceId, targetId, type) => {
     const batch = writeBatch(db);
-    
     const sourceRef = doc(db, "notes", sourceId);
     const targetRef = doc(db, "notes", targetId);
     const reverseType = type === 'anterior' ? 'posterior' : 'anterior';
@@ -99,10 +101,8 @@ const useSlipBox = () => {
     await batch.commit();
   };
 
-  // 6. UNLINK: Disconnect two notes
   const removeLink = async (sourceId, targetId, type) => {
     const batch = writeBatch(db);
-    
     const sourceRef = doc(db, "notes", sourceId);
     const targetRef = doc(db, "notes", targetId);
     const reverseType = type === 'anterior' ? 'posterior' : 'anterior';
@@ -113,14 +113,7 @@ const useSlipBox = () => {
     await batch.commit();
   };
 
-  return { 
-    notes, 
-    addNote, 
-    updateNote, 
-    deleteNote, 
-    addLink,
-    removeLink 
-  };
+  return { notes, addNote, updateNote, deleteNote, addLink, removeLink };
 };
 
 export default useSlipBox;

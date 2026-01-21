@@ -38,7 +38,13 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const clickStartRef = useRef(0);
   const prevPinchDistRef = useRef(null);
 
-  // --- 1. CALCULATE MAX AVAILABLE DEPTH (Smart Limit) ---
+  // --- 1. RESET DEPTH ON NAVIGATION ---
+  // When the user focuses a new card, reset the zoom level to 1 (lowest point)
+  useEffect(() => {
+    setViewDepth(1);
+  }, [activeNoteId]);
+
+  // --- 2. CALCULATE MAX AVAILABLE DEPTH (Smart Limit) ---
   const maxAvailableDepth = useMemo(() => {
     if (!activeNoteId) return 1;
     
@@ -47,7 +53,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     let currentLayer = [activeNoteId];
     const visited = new Set([activeNoteId]);
 
-    // CHANGED: Reduced limit by 1 to align 0-indexed loop with 1-indexed depth
     while (d < MAX_VIEW_DEPTH - 1) {
         const nextLayer = [];
         for (const id of currentLayer) {
@@ -63,7 +68,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
             }
         }
         
-        // If this layer added no new nodes, we've reached the end of the graph
         if (nextLayer.length === 0) break;
         
         currentLayer = nextLayer;
@@ -72,7 +76,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     return Math.max(1, d);
   }, [notes, activeNoteId]);
 
-  // --- 2. INITIALIZATION & DATA SYNC ---
+  // --- 3. INITIALIZATION & DATA SYNC ---
   useEffect(() => {
     const anchorId = activeNoteId || notes[0]?.id;
     if (!anchorId) return;
@@ -109,7 +113,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     });
   }, [notes, activeNoteId, viewDepth, maxAvailableDepth]);
 
-  // --- 3. ANIMATION LOOP ---
+  // --- 4. ANIMATION LOOP ---
   useEffect(() => {
     const animate = () => {
         setNodes(prev => runPhysicsTick(prev, false));
@@ -119,7 +123,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     return () => cancelAnimationFrame(requestRef.current);
   }, []); 
 
-  // --- 4. INPUT HANDLERS ---
+  // --- 5. INPUT HANDLERS ---
   const handleWheel = (e) => {
     e.preventDefault();
     const delta = e.deltaY * 0.001; 
@@ -158,7 +162,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     if (pointersRef.current.size < 2) prevPinchDistRef.current = null;
   };
 
-  // --- 5. HIGHLIGHT LOGIC ---
+  // --- 6. HIGHLIGHT LOGIC ---
   const highlightedSet = useMemo(() => {
     if (!highlightedId) return new Set();
     const node = nodes.find(n => n.id === highlightedId);

@@ -16,7 +16,7 @@ const GlobalIndexView = ({
   return (
     <>
       <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-      <main className="max-w-2xl mx-auto px-4">
+      <main className={STYLES.main}>
          <ImpulseCapture 
             input={impulse} 
             setInput={setImpulse} 
@@ -31,6 +31,10 @@ const GlobalIndexView = ({
       </main>
     </>
   );
+};
+
+const STYLES = {
+  main: "max-w-2xl mx-auto px-4"
 };
 
 export default GlobalIndexView;

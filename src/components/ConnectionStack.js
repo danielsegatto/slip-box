@@ -6,19 +6,19 @@ const ConnectionStack = ({ title, linkedNotes, onSelectNote, onRemove }) => {
   if (linkedNotes.length === 0) return null;
 
   return (
-    <section className="">
-      <div className="flex flex-col gap-4">
+    <section>
+      <div className={STYLES.list}>
         {linkedNotes.map(note => (
           <div 
             key={note.id} 
-            className="group relative flex items-start gap-2 bg-white"
+            className={STYLES.itemGroup}
           >
             {/* The Note Link */}
             <div 
               onClick={() => onSelectNote(note.id)}
-              className="flex-1 cursor-pointer text-sm border-l border-gray-200 pl-4 py-2 hover:border-gray-400 transition-colors"
+              className={STYLES.noteLink}
             >
-              <p className="text-gray-500 line-clamp-2">
+              <p className={STYLES.noteText}>
                 {note.content}
               </p>
             </div>
@@ -29,7 +29,7 @@ const ConnectionStack = ({ title, linkedNotes, onSelectNote, onRemove }) => {
                 e.stopPropagation();
                 onRemove(note.id);
               }}
-              className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition-all"
+              className={STYLES.disconnectButton}
               title="Disconnect"
             >
               <X size={14} />
@@ -39,6 +39,14 @@ const ConnectionStack = ({ title, linkedNotes, onSelectNote, onRemove }) => {
       </div>
     </section>
   );
+};
+
+const STYLES = {
+  list: "flex flex-col gap-4",
+  itemGroup: "group relative flex items-start gap-2 bg-white",
+  noteLink: "flex-1 cursor-pointer text-sm border-l border-gray-200 pl-4 py-2 hover:border-gray-400 transition-colors",
+  noteText: "text-gray-500 line-clamp-2",
+  disconnectButton: "opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition-all"
 };
 
 export default ConnectionStack;

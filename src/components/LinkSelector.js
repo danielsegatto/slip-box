@@ -10,26 +10,26 @@ const LinkSelector = ({ notes, onClose, onSelect, onCreate }) => {
   );
 
   return (
-    <div className="fixed inset-0 bg-[#fafafa] z-50 flex flex-col">
-      <div className="p-4 border-b border-gray-100 flex items-center gap-4">
-        <button onClick={onClose} className="p-2 -ml-2">
+    <div className={STYLES.overlay}>
+      <div className={STYLES.header}>
+        <button onClick={onClose} className={STYLES.closeButton}>
           <X size={24} className="text-gray-400" />
         </button>
         <input
           autoFocus
-          className="flex-1 text-xl bg-transparent outline-none placeholder:text-gray-300"
+          className={STYLES.input}
           placeholder="Search or Create..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4">
-        {/* CREATE OPTION - Only shows if there is text */}
+      <div className={STYLES.listContainer}>
+        {/* CREATE OPTION */}
         {search.trim() && (
             <button 
                 onClick={() => onCreate(search)}
-                className="w-full text-left p-4 mb-4 bg-black text-white rounded-lg flex items-center gap-3 active:scale-95 transition-transform"
+                className={STYLES.createButton}
             >
                 <Plus size={20} />
                 <span className="font-medium truncate">Create "{search}"</span>
@@ -41,20 +41,32 @@ const LinkSelector = ({ notes, onClose, onSelect, onCreate }) => {
           <button
             key={note.id}
             onClick={() => onSelect(note.id)}
-            className="w-full text-left p-4 mb-4 bg-white border border-gray-100 rounded-lg active:bg-gray-50 transition-colors shadow-sm"
+            className={STYLES.noteItem}
           >
-            <p className="text-sm text-gray-800 line-clamp-3 leading-relaxed">
+            <p className={STYLES.noteText}>
               {note.content}
             </p>
           </button>
         ))}
         
         {filtered.length === 0 && !search.trim() && (
-            <p className="text-center text-gray-300 mt-10">Type to search or create...</p>
+            <p className={STYLES.emptyState}>Type to search or create...</p>
         )}
       </div>
     </div>
   );
+};
+
+const STYLES = {
+  overlay: "fixed inset-0 bg-[#fafafa] z-50 flex flex-col",
+  header: "p-4 border-b border-gray-100 flex items-center gap-4",
+  closeButton: "p-2 -ml-2",
+  input: "flex-1 text-xl bg-transparent outline-none placeholder:text-gray-300",
+  listContainer: "flex-1 overflow-y-auto p-4",
+  createButton: "w-full text-left p-4 mb-4 bg-black text-white rounded-lg flex items-center gap-3 active:scale-95 transition-transform",
+  noteItem: "w-full text-left p-4 mb-4 bg-white border border-gray-100 rounded-lg active:bg-gray-50 transition-colors shadow-sm",
+  noteText: "text-sm text-gray-800 line-clamp-3 leading-relaxed",
+  emptyState: "text-center text-gray-300 mt-10"
 };
 
 export default LinkSelector;

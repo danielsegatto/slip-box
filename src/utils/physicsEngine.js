@@ -1,6 +1,6 @@
 // --- CONSTANTS ---
 // CHANGED: Increased font size for legibility
-const FONT_SIZE = 18;
+// const FONT_SIZE = 18;
 const REPULSION = 10000; 
 const SPRING_LEN = 400; 
 const PADDING = 50;     

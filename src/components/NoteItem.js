@@ -37,7 +37,8 @@ const STYLES = {
   header: "flex justify-between items-start mb-3",
   date: "text-xs text-gray-400 font-mono tracking-wide",
   deleteButton: "p-3 -mr-3 -mt-3 text-gray-300 hover:text-red-500 transition-colors",
-  content: "text-xl leading-relaxed text-[#1a1a1a] whitespace-pre-wrap line-clamp-4"
+  // CHANGED: Removed 'line-clamp-4' to allow full text display
+  content: "text-xl leading-relaxed text-[#1a1a1a] whitespace-pre-wrap"
 };
 
 export default NoteItem;

@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Plus, Map } from 'lucide-react'; 
-import ConnectionStack from '../links/ConnectionStack'; // Changed path
-import LinkSelector from '../links/LinkSelector'; // Changed path
-import AutoResizingTextarea from '../inputs/AutoResizingTextarea'; // Changed path
+import ConnectionStack from '../links/ConnectionStack';
+import LinkSelector from '../links/LinkSelector';
+import AutoResizingTextarea from '../inputs/AutoResizingTextarea'; 
 
 const FocusView = ({ 
   selectedNote, allNotes, getLinkedNotes, onBack, onSelectNote, 
   onUpdateNote, onAddLink, onRemoveLink, onOpenMap, onAddNote 
 }) => {
-  // ... (rest of the component remains the same)
   const [linkingType, setLinkingType] = useState(null); 
-  
+
   // --- LINKING LOGIC ---
   const linkableNotes = allNotes.filter(n => {
     if (!selectedNote) return false;
@@ -30,6 +29,11 @@ const FocusView = ({
       onAddLink(selectedNote.id, newNote.id, linkingType); 
       setLinkingType(null); 
   };
+
+  // --- COUNTER LOGIC ---
+  const antCount = selectedNote.links?.anterior?.length || 0;
+  const postCount = selectedNote.links?.posterior?.length || 0;
+  const showCounter = antCount > 0 || postCount > 0;
 
   if (!selectedNote) return null;
 
@@ -81,6 +85,15 @@ const FocusView = ({
                onChange={(e) => onUpdateNote(selectedNote.id, e.target.value)}
                className={STYLES.textarea}
              />
+             
+             {/* CONNECTION COUNTER */}
+             {showCounter && (
+                <div className={STYLES.counter}>
+                  {antCount > 0 && <span>{antCount} [</span>}
+                  {antCount > 0 && postCount > 0 && <span>&nbsp;</span>}
+                  {postCount > 0 && <span>] {postCount}</span>}
+                </div>
+             )}
           </article>
 
           {/* POSTERIOR */}
@@ -112,8 +125,11 @@ const STYLES = {
   threadContainer: "flex flex-col gap-2 relative flex-1",
   connectionGroup: "flex flex-col gap-2",
   addButton: "text-gray-300 hover:text-black self-center transition-colors",
-  activeNoteContainer: "border-y border-gray-100",
-  textarea: "w-full text-2xl leading-relaxed text-[#1a1a1a] font-light resize-none bg-white outline-none overflow-hidden p-2"
+  // CHANGED: Added relative positioning to contain the counter
+  activeNoteContainer: "relative border-y border-gray-100",
+  textarea: "w-full text-2xl leading-relaxed text-[#1a1a1a] font-light resize-none bg-white outline-none overflow-hidden p-2 pb-8", // Added pb-8 for counter space
+  // NEW STYLE
+  counter: "absolute bottom-2 right-2 text-xs font-mono text-gray-300 tracking-widest pointer-events-none bg-white/80 px-1 rounded"
 };
 
 export default FocusView;

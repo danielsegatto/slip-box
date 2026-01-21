@@ -1,121 +1,77 @@
-import React, { useState, useRef } from 'react';
-import { useSlipBox } from './hooks/useSlipBox';
-
-// Views
-import GlobalIndexView from './components/views/GlobalIndexView';
+import React, { useState } from 'react';
+import useSlipBox from './hooks/useSlipBox';
+import ImpulseCapture from './components/ImpulseCapture';
+import SearchBar from './components/SearchBar';
+import NoteList from './components/NoteList';
 import FocusView from './components/views/FocusView';
 import MapView from './components/views/MapView';
 
 const App = () => {
-  // --- 1. THE NERVOUS SYSTEM (Logic Hook) ---
   const { notes, addNote, updateNote, deleteNote, addLink, removeLink } = useSlipBox();
-
-  // --- 2. UI STATE ---
-  const [input, setInput] = useState('');
+  const [view, setView] = useState('index'); 
+  const [activeNoteId, setActiveNoteId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedNoteId, setSelectedNoteId] = useState(null); 
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'focus' | 'map'
-  
-  const textareaRef = useRef(null);
+  const [impulse, setImpulse] = useState('');
 
-  // --- 3. LOGIC & ROUTING ---
-  
-  // Smart Filtering: Handles both text search and "#tag" clicks
-  const filteredNotes = notes.filter(n => {
-    const query = searchQuery.toLowerCase();
-    // If the query looks like a tag (starts with #), strip the '#' for comparison
-    const cleanQuery = query.startsWith('#') ? query.slice(1) : query;
+  // ... (Impulse handling same as before) ...
+  const handleImpulseAdd = () => {
+     if (!impulse.trim()) return;
+     addNote(impulse);
+     setImpulse('');
+  };
 
-    return (
-      n.content.toLowerCase().includes(query) ||
-      n.tags.some(t => t.toLowerCase().includes(cleanQuery))
-    );
-  });
-
-  const selectedNote = notes.find(n => n.id === selectedNoteId);
-
-  // Helper to gather linked note objects for the Focus View
+  // ... (Link helper same as before) ...
   const getLinkedNotes = (type) => {
-    if (!selectedNote) return [];
-    return selectedNote.links[type]
-      .map(id => notes.find(n => n.id === id))
-      .filter(Boolean);
+    const activeNote = notes.find(n => n.id === activeNoteId);
+    if (!activeNote || !activeNote.links[type]) return [];
+    return activeNote.links[type].map(linkId => notes.find(n => n.id === linkId)).filter(Boolean);
   };
 
-  // --- HANDLERS ---
-
-  const handleGlobalSelect = (id) => {
-      setSelectedNoteId(id);
-      setViewMode('focus'); 
-  };
-
-  const handleMapSelect = (id) => {
-      setSelectedNoteId(id);
-      // DO NOT change viewMode. Stay in map, just update the anchor.
-  };
-
-  const handleMapClose = () => {
-    // If we have a selection, go to Focus. If not, go to List.
-      setViewMode(selectedNoteId ? 'focus' : 'list');
-  };
-
-  const handleAddNote = () => {
-      addNote(input);
-      setInput('');
-      textareaRef.current?.focus();
-  };
-
-  const handleTagClick = (tag) => {
-    // Prepend '#' for visual clarity in the search bar
-    setSearchQuery(`#${tag}`); 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const activeNote = notes.find(n => n.id === activeNoteId);
 
   return (
-    <div className="min-h-screen bg-[#fafafa] text-[#1a1a1a] font-sans selection:bg-black selection:text-white relative">
-      
-      {/* VIEW: MAP */}
-      {viewMode === 'map' && (
-          <MapView 
+    <div className="min-h-screen bg-[#fafafa] font-sans text-[#1a1a1a]">
+      {view === 'map' && (
+        <MapView 
             notes={notes} 
-            activeNoteId={selectedNoteId}
-            onSelectNote={handleMapSelect} 
-            onClose={handleMapClose}       
-          />
+            activeNoteId={activeNoteId}
+            onSelectNote={(id) => { setActiveNoteId(id); setView('focus'); }}
+            onClose={() => setView('focus')}
+        />
       )}
 
-      {/* VIEW: GLOBAL INDEX */}
-      {viewMode === 'list' && !selectedNoteId && (
-          <GlobalIndexView 
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            input={input}
-            setInput={setInput}
-            onAddNote={handleAddNote}
-            textareaRef={textareaRef}
-            filteredNotes={filteredNotes}
-            onDeleteNote={deleteNote}
-            onSelectNote={handleGlobalSelect} 
-            onTagClick={handleTagClick}
-          />
+      {view === 'index' && (
+        <>
+          <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+          <main className="max-w-2xl mx-auto px-4">
+             <ImpulseCapture 
+                input={impulse} 
+                setInput={setImpulse} 
+                addNote={handleImpulseAdd} 
+             />
+             <NoteList 
+                notes={notes.filter(n => n.content.toLowerCase().includes(searchQuery.toLowerCase()))} 
+                onSelect={(id) => { setActiveNoteId(id); setView('focus'); }}
+                deleteNote={deleteNote}
+                onTagClick={setSearchQuery}
+             />
+          </main>
+        </>
       )}
 
-      {/* VIEW: FOCUS */}
-      {viewMode === 'focus' && selectedNoteId && selectedNote && (
-            <FocusView 
-              selectedNote={selectedNote}
-              allNotes={notes}
-              getLinkedNotes={getLinkedNotes}
-              onBack={() => {
-                  setSelectedNoteId(null);
-                  setViewMode('list');
-              }}
-              onSelectNote={(id) => setSelectedNoteId(id)} 
-              onUpdateNote={updateNote} // Pass the updater
-              onAddLink={addLink}
-              onRemoveLink={removeLink} 
-              onOpenMap={() => setViewMode('map')}
-            />
+      {view === 'focus' && activeNote && (
+        <FocusView 
+          selectedNote={activeNote}
+          allNotes={notes}
+          getLinkedNotes={getLinkedNotes}
+          onBack={() => setView('index')}
+          onSelectNote={setActiveNoteId}
+          onUpdateNote={updateNote}
+          onAddLink={addLink}
+          onRemoveLink={removeLink}
+          onOpenMap={() => setView('map')}
+          onAddNote={addNote} // PASSED PROP HERE
+        />
       )}
     </div>
   );

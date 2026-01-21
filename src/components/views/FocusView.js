@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Plus, Map } from 'lucide-react'; 
-import ConnectionStack from '../ConnectionStack';
-import LinkSelector from '../LinkSelector';
-import AutoResizingTextarea from '../AutoResizingTextarea';
+import ConnectionStack from '../links/ConnectionStack';
+import LinkSelector from '../links/LinkSelector';
+import AutoResizingTextarea from '../inputs/AutoResizingTextarea';
 
 const FocusView = ({ 
   selectedNote, allNotes, getLinkedNotes, onBack, onSelectNote, 

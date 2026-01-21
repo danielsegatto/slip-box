@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { runPhysicsTick, getDimensions } from '../../utils/physicsEngine';
-import MapControls from '../MapControls'; // Import the new component
+import MapControls from '../map/MapControls'; // Import the new component
 
 // --- CONSTANTS ---
 const MAX_VIEW_DEPTH = 5; 

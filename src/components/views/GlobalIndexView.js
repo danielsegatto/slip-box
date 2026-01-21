@@ -1,7 +1,7 @@
 import React from 'react';
-import SearchBar from '../SearchBar';
-import ImpulseCapture from '../ImpulseCapture';
-import NoteList from '../NoteList';
+import SearchBar from '../inputs/SearchBar'; // Changed path
+import ImpulseCapture from '../inputs/ImpulseCapture'; // Changed path
+import NoteList from '../notes/NoteList'; // Changed path
 
 const GlobalIndexView = ({ 
   notes, 
@@ -16,7 +16,7 @@ const GlobalIndexView = ({
   return (
     <>
       <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-      <main className={STYLES.main}>
+      <main className="max-w-2xl mx-auto px-4">
          <ImpulseCapture 
             input={impulse} 
             setInput={setImpulse} 
@@ -31,10 +31,6 @@ const GlobalIndexView = ({
       </main>
     </>
   );
-};
-
-const STYLES = {
-  main: "max-w-2xl mx-auto px-4"
 };
 
 export default GlobalIndexView;

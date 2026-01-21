@@ -2,10 +2,11 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
 import { runPhysicsTick, getDimensions } from '../../utils/physicsEngine';
 
+// --- CONSTANTS ---
+const MAX_VIEW_DEPTH = 5; // Hard limit for performance
+
 // --- GEOMETRY HELPER: CLIP LINE TO RECTANGLE ---
-// Calculates where the line from 'source' should stop to touch 'target's border
 const calculateIntersection = (source, target) => {
-    // Target dimensions (half-width/height) plus a small buffer for the arrow tip
     const w = (target.width / 2) + 5; 
     const h = (target.height / 2) + 5;
 
@@ -14,8 +15,6 @@ const calculateIntersection = (source, target) => {
 
     if (dx === 0 && dy === 0) return { x: target.x, y: target.y };
 
-    // Calculate scale factor to project vector onto the box boundary
-    // We are looking for the point on the target box that faces the source.
     const scaleX = w / Math.abs(dx);
     const scaleY = h / Math.abs(dy);
     const scale = Math.min(scaleX, scaleY);
@@ -37,20 +36,53 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const pointersRef = useRef(new Map());
   const requestRef = useRef();
   const clickStartRef = useRef(0);
-
-  // Track previous distance between two fingers for pinch-zoom
   const prevPinchDistRef = useRef(null);
 
-  // --- 1. INITIALIZATION & DATA SYNC ---
+  // --- 1. CALCULATE MAX AVAILABLE DEPTH (Smart Limit) ---
+  const maxAvailableDepth = useMemo(() => {
+    if (!activeNoteId) return 1;
+    
+    // Start at 0. 'd' represents the number of SUCCESSFUL expansions.
+    let d = 0;
+    let currentLayer = [activeNoteId];
+    const visited = new Set([activeNoteId]);
+
+    // CHANGED: Reduced limit by 1 to align 0-indexed loop with 1-indexed depth
+    while (d < MAX_VIEW_DEPTH - 1) {
+        const nextLayer = [];
+        for (const id of currentLayer) {
+            const note = notes.find(n => n.id === id);
+            if (!note) continue;
+            
+            const links = [...note.links.anterior, ...note.links.posterior];
+            for (const linkId of links) {
+                if (!visited.has(linkId)) {
+                    visited.add(linkId);
+                    nextLayer.push(linkId);
+                }
+            }
+        }
+        
+        // If this layer added no new nodes, we've reached the end of the graph
+        if (nextLayer.length === 0) break;
+        
+        currentLayer = nextLayer;
+        d++;
+    }
+    return Math.max(1, d);
+  }, [notes, activeNoteId]);
+
+  // --- 2. INITIALIZATION & DATA SYNC ---
   useEffect(() => {
-    // If no active note, show everything (or a default set)
-    // For now, we require an activeNoteId to "anchor" the map view
     const anchorId = activeNoteId || notes[0]?.id;
     if (!anchorId) return;
-    // A. BFS for visibility (Which nodes should be on the map?)
+
     const visited = new Set([anchorId]);
     let currentLayer = [activeNoteId];
-    for (let d = 0; d < viewDepth; d++) {
+    // Clamp the actual depth to what is mathematically possible
+    const actualDepth = Math.min(viewDepth, maxAvailableDepth);
+
+    for (let d = 0; d < actualDepth; d++) {
         const nextLayer = [];
         currentLayer.forEach(id => {
             const note = notes.find(n => n.id === id);
@@ -61,7 +93,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
         });
         currentLayer = nextLayer;
     }
-    // B. Build/Update Node Objects (Preserve positions of existing nodes)
+
     setNodes(prevNodes => {
         const prevMap = new Map(prevNodes.map(n => [n.id, n]));
         let newNodes = notes.filter(n => visited.has(n.id)).map(n => {
@@ -70,15 +102,14 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
             if (existing) return { ...existing, ...dims };
             return { ...n, ...dims, x: Math.random() * 20 - 10, y: Math.random() * 20 - 10, vx: 0, vy: 0 };
         });
-        // C. Pre-solve Layout if it's a fresh load (low node count)
         if (prevNodes.length === 0) {
             for (let i = 0; i < 200; i++) { newNodes = runPhysicsTick(newNodes, true); }
         }
         return newNodes;
     });
-  }, [notes, activeNoteId, viewDepth]); // Re-runs when activeNoteId changes to re-center graph
+  }, [notes, activeNoteId, viewDepth, maxAvailableDepth]);
 
-  // --- 2. ANIMATION LOOP ---
+  // --- 3. ANIMATION LOOP ---
   useEffect(() => {
     const animate = () => {
         setNodes(prev => runPhysicsTick(prev, false));
@@ -88,7 +119,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     return () => cancelAnimationFrame(requestRef.current);
   }, []); 
 
-  // --- 3. INPUT HANDLERS (Zoom/Pan/Click) ---
+  // --- 4. INPUT HANDLERS ---
   const handleWheel = (e) => {
     e.preventDefault();
     const delta = e.deltaY * 0.001; 
@@ -96,8 +127,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   };
 
   const handlePointerDown = (e) => {
-    // Check if we are clicking the background (not a node-card)
-    // In this new structure, nodes block events, so this generally only fires on background
     e.target.setPointerCapture(e.pointerId);
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
   };
@@ -108,7 +137,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     if (pointersRef.current.size === 2) {        
-      // PINCH ZOOM
         const points = [...pointersRef.current.values()];
         const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
         if (prevPinchDistRef.current) {
@@ -117,7 +145,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
         }
         prevPinchDistRef.current = dist;
     } else if (pointersRef.current.size === 1) {
-        // PAN
         prevPinchDistRef.current = null; 
         setPan(p => ({
             x: p.x + (e.clientX - prev.x),
@@ -131,20 +158,19 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     if (pointersRef.current.size < 2) prevPinchDistRef.current = null;
   };
 
-  // --- 4. HIGHLIGHT LOGIC ---
-  // Create a Set of IDs that should be lit up (The Held Node + Its Neighbors)
+  // --- 5. HIGHLIGHT LOGIC ---
   const highlightedSet = useMemo(() => {
     if (!highlightedId) return new Set();
     const node = nodes.find(n => n.id === highlightedId);
     if (!node) return new Set([highlightedId]);
-    
-    // Since links are bidirectional in the data, we just grab this node's links
     return new Set([
         highlightedId,
         ...node.links.anterior,
         ...node.links.posterior
     ]);
   }, [highlightedId, nodes]);
+
+  const canIncreaseDepth = viewDepth < maxAvailableDepth;
 
   return (
     <div 
@@ -162,10 +188,20 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
           <X size={20} />
         </button>
         <div className="h-4"></div>
-        <button onClick={() => setViewDepth(d => d + 1)} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500">
+        
+        <button 
+            onClick={() => setViewDepth(d => Math.min(maxAvailableDepth, d + 1))}
+            disabled={!canIncreaseDepth}
+            className={`p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 transition-colors ${!canIncreaseDepth ? 'opacity-50 cursor-not-allowed' : 'hover:text-black'}`}
+        >
           <Plus size={20} />
         </button>
-        <button onClick={() => setViewDepth(d => Math.max(1, d - 1))} className="p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500">
+        
+        <button 
+            onClick={() => setViewDepth(d => Math.max(1, d - 1))} 
+            disabled={viewDepth <= 1}
+            className={`p-2 bg-white border border-gray-200 shadow-sm rounded-full text-gray-500 transition-colors ${viewDepth <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:text-black'}`}
+        >
           <Minus size={20} />
         </button>
       </div>
@@ -193,9 +229,8 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
               const isHighlighted = highlightedId && (node.id === highlightedId || source.id === highlightedId);
               if (isHighlighted) return null; 
 
-              // Calculate intersection for BOTH ends to ensure line starts/stops at card edges
-              const start = calculateIntersection(node, source); // Point on Source
-              const end = calculateIntersection(source, node);   // Point on Target
+              const start = calculateIntersection(node, source);
+              const end = calculateIntersection(source, node);
 
               return (
                 <line 
@@ -219,7 +254,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                <div 
                  key={node.id}
                  className={`
-                   absolute pointer-events-auto flex flex-col p-2 bg-white border transition-shadow duration-300 overflow-hidden overflow-hidden
+                   absolute pointer-events-auto flex flex-col p-2 bg-white border transition-shadow duration-300 overflow-hidden
                    ${node.id === activeNoteId ? 'border-black shadow-lg z-20' : 'border-gray-300 shadow-sm z-10'}
                    ${isLit ? 'ring-2 ring-black z-30' : ''} 
                  `}
@@ -278,7 +313,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
               const isHighlighted = highlightedId && (node.id === highlightedId || source.id === highlightedId);
               if (!isHighlighted) return null;
 
-              // Edge-to-Edge calculation for highlighted lines too
               const start = calculateIntersection(node, source); 
               const end = calculateIntersection(source, node);   
 

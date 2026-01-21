@@ -16,7 +16,8 @@ const TagList = ({ tags, onTagClick, variant = 'default' }) => {
           key={tag} 
           onClick={(e) => {
             e.stopPropagation();
-            onTagClick && onTagClick(tag);
+            // Prepend '#' so the search filters by tag, not just the word.
+            onTagClick && onTagClick(`#${tag}`);
           }}
           className={styles[variant]}
         >

@@ -109,10 +109,10 @@ const STYLES = {
   container: "max-w-2xl mx-auto px-5 py-4 min-h-screen flex flex-col",
   header: "flex justify-between items-center mb-6",
   navButton: "p-3 -ml-3 rounded-full active:bg-gray-100 transition-colors",
-  threadContainer: "flex flex-col gap-6 relative flex-1",
+  threadContainer: "flex flex-col gap-2 relative flex-1",
   connectionGroup: "flex flex-col gap-2",
-  addButton: "p-2 text-gray-300 hover:text-black self-center transition-colors",
-  activeNoteContainer: "py-2 border-y border-gray-100",
+  addButton: "text-gray-300 hover:text-black self-center transition-colors",
+  activeNoteContainer: "border-y border-gray-100",
   textarea: "w-full text-2xl leading-relaxed text-[#1a1a1a] font-light resize-none bg-white outline-none overflow-hidden p-2"
 };
 

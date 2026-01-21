@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import useSlipBox from './hooks/useSlipBox';
-import GlobalIndexView from './components/views/GlobalIndexView';
+import GlobalIndexView from './components/views/GlobalIndexView'; // Updated View usage
 import FocusView from './components/views/FocusView';
 import MapView from './components/views/MapView';
 
@@ -40,7 +40,7 @@ const App = () => {
         />
       )}
 
-      {/* INDEX VIEW */}
+      {/* INDEX VIEW (Refactored to use GlobalIndexView) */}
       {view === 'index' && (
         <GlobalIndexView 
             notes={notes}

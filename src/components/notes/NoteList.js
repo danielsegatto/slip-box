@@ -1,27 +1,27 @@
 import React from 'react';
-import NoteItem from './NoteItem';
+import NoteItem from './NoteItem'; // Changed from './NoteItem' to './NoteItem' (same dir)
 
-const NoteList = ({ notes, onDelete, onSelect, onTagClick }) => {
+const NoteList = ({ notes, deleteNote, onSelect, onTagClick }) => {
   if (notes.length === 0) {
     return (
-      <div className="text-center py-20 text-gray-300 italic">
-        The slip-box is quiet.
+      <div className="text-center py-10 text-gray-400">
+        <p>...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {notes.map((note) => (
+    <section className="pb-20">
+      {notes.map(note => (
         <NoteItem 
           key={note.id} 
           note={note} 
-          deleteNote={onDelete} 
+          deleteNote={deleteNote} 
           onSelect={() => onSelect(note.id)}
-          onTagClick={onTagClick} // Pass it down to the item
+          onTagClick={onTagClick}
         />
       ))}
-    </div>
+    </section>
   );
 };
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { runPhysicsTick, getDimensions } from '../../utils/physicsEngine';
-import MapControls from '../map/MapControls'; // Import the new component
+import MapControls from '../map/MapControls'; // Changed path
 
 // --- CONSTANTS ---
 const MAX_VIEW_DEPTH = 5; 
@@ -32,7 +32,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const pointersRef = useRef(new Map());
   const requestRef = useRef();
   const clickStartRef = useRef(0);
-  const prevPinchDistRef = useRef(null);
 
   // --- 1. RESET DEPTH ON NAVIGATION ---
   useEffect(() => {
@@ -132,13 +131,8 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     if (pointersRef.current.size === 2) {        
         const points = [...pointersRef.current.values()];
         const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-        if (prevPinchDistRef.current) {
-            const scale = dist / prevPinchDistRef.current;
-            setZoom(z => Math.min(Math.max(0.2, z * scale), 4));
-        }
-        prevPinchDistRef.current = dist;
+        setZoom(z => Math.min(Math.max(0.2, z * (dist / (Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) || 1))), 4));
     } else if (pointersRef.current.size === 1) {
-        prevPinchDistRef.current = null; 
         setPan(p => ({
             x: p.x + (e.clientX - prev.x),
             y: p.y + (e.clientY - prev.y)
@@ -148,7 +142,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
 
   const handlePointerUp = (e) => {
     pointersRef.current.delete(e.pointerId);
-    if (pointersRef.current.size < 2) prevPinchDistRef.current = null;
   };
 
   // --- 6. HIGHLIGHT LOGIC ---
@@ -254,10 +247,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                  }}
                  onClick={(e) => {
                      e.stopPropagation();
-                     const pressDuration = Date.now() - clickStartRef.current;
-                     if (pressDuration < 200) {
-                         onSelectNote(node.id);
-                     }
+                     onSelectNote(node.id);
                }}
              >
                 {node.tags.length > 0 && (

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Plus, Map } from 'lucide-react'; 
-import ConnectionStack from '../links/ConnectionStack';
-import LinkSelector from '../links/LinkSelector';
-import AutoResizingTextarea from '../inputs/AutoResizingTextarea';
+import ConnectionStack from '../links/ConnectionStack'; // Changed path
+import LinkSelector from '../links/LinkSelector'; // Changed path
+import AutoResizingTextarea from '../inputs/AutoResizingTextarea'; // Changed path
 
 const FocusView = ({ 
   selectedNote, allNotes, getLinkedNotes, onBack, onSelectNote, 
   onUpdateNote, onAddLink, onRemoveLink, onOpenMap, onAddNote 
 }) => {
+  // ... (rest of the component remains the same)
   const [linkingType, setLinkingType] = useState(null); 
-
+  
   // --- LINKING LOGIC ---
   const linkableNotes = allNotes.filter(n => {
     if (!selectedNote) return false;
@@ -75,7 +76,6 @@ const FocusView = ({
 
           {/* CURRENT NOTE (EDITABLE) */}
           <article className={STYLES.activeNoteContainer}>
-             {/* REPLACED: Native textarea with AutoResizingTextarea */}
              <AutoResizingTextarea
                value={selectedNote.content}
                onChange={(e) => onUpdateNote(selectedNote.id, e.target.value)}

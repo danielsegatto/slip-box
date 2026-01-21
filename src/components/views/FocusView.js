@@ -129,7 +129,7 @@ const STYLES = {
   activeNoteContainer: "relative border-y border-gray-100",
   textarea: "w-full text-2xl leading-relaxed text-[#1a1a1a] font-light resize-none bg-white outline-none overflow-hidden p-2 pb-8", // Added pb-8 for counter space
   // NEW STYLE
-  counter: "absolute bottom-2 right-2 text-xs font-mono text-gray-300 tracking-widest pointer-events-none bg-white/80 px-1 rounded"
+  counter: "p-2 absolute bottom-2 right-2 text-xs font-mono text-gray-300 tracking-widest pointer-events-none bg-white/80 px-1 rounded"
 };
 
 export default FocusView;

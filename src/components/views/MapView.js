@@ -32,7 +32,8 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
   const pointersRef = useRef(new Map());
   const requestRef = useRef();
   const clickStartRef = useRef(0);
-  const prevPinchDistRef = useRef(null); // TRACK PREVIOUS DISTANCE
+  const clickStartPosRef = useRef({ x: 0, y: 0 }); // Track start position for click validation
+  const prevPinchDistRef = useRef(null);
 
   // --- 1. RESET DEPTH ON NAVIGATION ---
   useEffect(() => {
@@ -132,20 +133,16 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
     if (pointersRef.current.size === 2) {        
         // --- PINCH LOGIC ---
         const points = [...pointersRef.current.values()];
-        // Calculate distance between the two pointers
         const currentDist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
 
-        // If we have a previous distance, calculate the scale difference
         if (prevPinchDistRef.current) {
             const scale = currentDist / prevPinchDistRef.current;
             setZoom(z => Math.min(Math.max(0.2, z * scale), 4));
         }
-
-        // Store current distance for the next frame
         prevPinchDistRef.current = currentDist;
     } else if (pointersRef.current.size === 1) {
         // --- PAN LOGIC ---
-        prevPinchDistRef.current = null; // Reset pinch if one finger lifts
+        prevPinchDistRef.current = null;
         setPan(p => ({
             x: p.x + (e.clientX - prev.x),
             y: p.y + (e.clientY - prev.y)
@@ -155,7 +152,6 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
 
   const handlePointerUp = (e) => {
     pointersRef.current.delete(e.pointerId);
-    // Reset pinch tracking if we drop below 2 fingers
     if (pointersRef.current.size < 2) {
         prevPinchDistRef.current = null;
     }
@@ -183,10 +179,9 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      onPointerLeave={handlePointerUp} // Safety: clear pointer if it leaves window
+      onPointerLeave={handlePointerUp}
     >
       
-      {/* EXTRACTED UI CONTROLS */}
       <MapControls 
         onClose={onClose}
         onIncreaseDepth={() => setViewDepth(d => Math.min(maxAvailableDepth, d + 1))}
@@ -201,9 +196,8 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
           transform: `translate(${pan.x + dimensions.width/2}px, ${pan.y + dimensions.height/2}px) scale(${zoom})` 
         }}
       >
-        {/* ... SVG LAYERS (Unchanged) ... */}
         
-        {/* LAYER 0: PASSIVE LINES (Background - z-0) */}
+        {/* PASSIVE LINES */}
         <svg className="absolute inset-0 overflow-visible pointer-events-none z-0">
           <defs>
             <marker id="arrow-default" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
@@ -232,7 +226,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
           ))}
         </svg>
 
-        {/* LAYER 10: NOTE CARDS (Middle - z-10) */}
+        {/* NOTE CARDS */}
         <div className="absolute inset-0 pointer-events-none z-10">
           {nodes.map(node => {
              const isLit = highlightedSet.has(node.id);
@@ -252,15 +246,20 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
                    transform: 'translate(-50%, -50%)'
                  }}
                  onPointerDown={(e) => {
-                     e.stopPropagation();
+                     // FIX: Removed e.stopPropagation() so map receives pinch events even if starting on a card
                      setHighlightedId(node.id);
                      clickStartRef.current = Date.now();
+                     clickStartPosRef.current = { x: e.clientX, y: e.clientY };
                  }}
                  onPointerUp={(e) => {
-                     e.stopPropagation();
+                     // FIX: Removed e.stopPropagation()
                      setHighlightedId(null);
+                     
                      const pressDuration = Date.now() - clickStartRef.current;
-                     if (pressDuration < 200) {
+                     const moveDist = Math.hypot(e.clientX - clickStartPosRef.current.x, e.clientY - clickStartPosRef.current.y);
+                     
+                     // Only navigate if it was a quick tap (short duration) AND small movement (not a drag/pan)
+                     if (pressDuration < 200 && moveDist < 10) {
                          onSelectNote(node.id);
                      }
                  }}
@@ -280,7 +279,7 @@ const MapView = ({ notes, onSelectNote, onClose, activeNoteId }) => {
           })}
         </div>
 
-        {/* LAYER 20: ACTIVE LINES (Foreground - z-20) */}
+        {/* ACTIVE LINES */}
         <svg className="absolute inset-0 overflow-visible pointer-events-none z-20">
           <defs>
             <marker id="arrow-active" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">

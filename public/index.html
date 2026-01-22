@@ -2,10 +2,43 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>React App</title>
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    
+    <meta 
+      name="viewport" 
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" 
+    />
+    
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Slip-box: Mental Topography"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <title>Slip-box</title>
+    
+    <style>
+      /* Ensure the app takes full height on mobile without scrolling the body */
+      html, body {
+        height: 100%;
+        width: 100%;
+        overflow: hidden; /* Prevents "pull-to-refresh" rubber banding */
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent; /* Removes gray tap box on buttons */
+        touch-action: none; /* Disables browser gestures like swipe back */
+      }
+      #root {
+        height: 100%;
+      }
+    </style>
   </head>
   <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   </body>
 </html>
